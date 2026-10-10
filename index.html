@@ -64,6 +64,9 @@
   <label id="gRRow">Arrondi des angles (%) <input type="number" id="gR" value="35" min="0" max="100" step="5"></label>
   <label>Twist le long du tore (°) <input type="number" id="gTw" value="0" min="0" max="720" step="1"></label>
   <input type="range" id="gTwR" min="0" max="720" step="1" value="0" style="width:100%">
+  <label>Taille max le long du tore (%) <input type="number" id="gS" value="100" min="10" max="400" step="5"></label>
+  <label>Cycles de variation <input type="number" id="gCyc" value="1" min="1" max="12" step="1"></label>
+  <p class="s">100 % = taille constante. Avec 200 %, la section part à 100 %, atteint 200 % à mi-tour puis revient à 100 % (variation progressive). Si tu mets 50 %, la section rétrécit.</p>
   <label>Enfoncement dans la plaque (mm) <input type="number" id="gSink" value="0" min="0" step="0.5"></label>
   <p class="s">L'enfoncement coupe le bas de la forme : on obtient un méplat plat pour les ergots au lieu d'une pointe.</p>
   <div class="row">
@@ -125,6 +128,7 @@
   <div class="tabs">
     <button id="tab3d" class="on">3D</button>
     <button id="tab2d">Planche 2D</button>
+    <button id="tabReal">Mode réel</button>
   </div>
   <div id="view3d"></div>
   <div id="view2d"></div>
@@ -365,7 +369,14 @@ function generate(){
   const valid=pieces.filter(p=>p.geom);
   if(!valid.length){msg('','Aucune section trouvée.');return;}
   if(openTotal)warns.push(`${openTotal} contour(s) ouvert(s) ignoré(s) : le maillage n'est pas étanche.`);
-  if(noTab)warns.push(`${noTab} pièce(s) sans ergot (pas de surface plate près du bas). Augmente la « hauteur de scan » ou pose mieux le modèle.`);
+  // éléments sans ergot (donc sans contact avec la plaque) : affichés en rouge dans l'aperçu 3D
+  let badComps=0;const badPieces=[];
+  for(const p of valid){
+    p.bad=new Set();
+    p.geom.forEach((poly,k)=>{let mz=1e18;for(const q of poly[0])mz=Math.min(mz,q[1]);if(mz>-1e-6){p.bad.add(k);badComps++;}});
+    if(p.bad.size)badPieces.push(p.i+1);
+  }
+  if(badComps)warns.push(`${badComps} élément(s) sans ergot ni contact avec la plaque (en rouge dans l'aperçu 3D), pièce(s) n° ${badPieces.join(', ')}. Augmente la « hauteur de scan » ou l'enfoncement, ou pose mieux le modèle.`);
   if(radial&&N>1){
     let rmin=1e18;
     for(const p of valid)for(const poly of p.geom)for(const r of poly)for(const q of r)rmin=Math.min(rmin,q[0]);
@@ -439,15 +450,20 @@ function msg(i,w){$('info').textContent=i;$('warn').textContent=w;}
 const host=$('view3d');
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 host.appendChild(renderer.domElement);
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x14161a);
 const camera=new THREE.PerspectiveCamera(45,1,0.1,10000);camera.up.set(0,0,1);camera.position.set(150,-200,150);
 const controls=new OrbitControls(camera,renderer.domElement);
-scene.add(new THREE.AmbientLight(0xffffff,.6));
+const ambient=new THREE.AmbientLight(0xffffff,.6);scene.add(ambient);
 const dl=new THREE.DirectionalLight(0xffffff,1.1);dl.position.set(200,-300,400);scene.add(dl);
 const dl2=new THREE.DirectionalLight(0xffffff,.4);dl2.position.set(-200,200,100);scene.add(dl2);
 const grid=new THREE.GridHelper(400,40,0x444a55,0x2a2f37);grid.rotation.x=Math.PI/2;grid.position.z=-0.01;scene.add(grid);
 let modelMesh=null;const pieceGroup=new THREE.Group();scene.add(pieceGroup);
+const sun=new THREE.DirectionalLight(0xfff1dd,2.4);sun.castShadow=true;sun.visible=false;sun.shadow.mapSize.set(2048,2048);scene.add(sun);scene.add(sun.target);
+const hemi=new THREE.HemisphereLight(0xffffff,0x9a8a74,0);scene.add(hemi);
+const table=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshStandardMaterial({color:0xcbbba2,roughness:.95}));
+table.receiveShadow=true;table.visible=false;scene.add(table);
 function fit(){
   const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;
   renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();
@@ -474,41 +490,108 @@ function refreshModel(refit){
 }
 function clearPieces(){
   while(pieceGroup.children.length){const o=pieceGroup.children.pop();o.traverse?.(c=>{c.geometry?.dispose();});}
+  table.visible=false;
+}
+/* ---------------- Rendu réel : contreplaqué découpé au laser ---------------- */
+let realMode=false,faceBases=null;
+function canvasTex(w,h,draw,repeat,offset){
+  const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);
+  const tx=new THREE.CanvasTexture(c);tx.wrapS=tx.wrapT=THREE.RepeatWrapping;tx.colorSpace=THREE.SRGBColorSpace;
+  tx.anisotropy=4;tx.repeat.set(repeat[0],repeat[1]);tx.offset.set(offset[0],offset[1]);return tx;
+}
+function faceTexture(){ // placage de bouleau : fibres ondulées
+  return canvasTex(512,512,(x,w,h)=>{
+    x.fillStyle='#e8cfa8';x.fillRect(0,0,w,h);
+    for(let i=0;i<260;i++){
+      const y0=Math.random()*h,amp=1+Math.random()*4,fr=1+Math.floor(Math.random()*3),ph=Math.random()*6.28;
+      x.strokeStyle=`rgba(${150+Math.random()*30|0},${100+Math.random()*30|0},${50+Math.random()*20|0},${.05+Math.random()*.16})`;
+      x.lineWidth=.5+Math.random()*2.2;
+      x.beginPath();
+      for(let px=0;px<=w;px+=8){const y=y0+Math.sin(px/w*Math.PI*2*fr+ph)*amp;px?x.lineTo(px,y):x.moveTo(px,y);}
+      x.stroke();
+    }
+  },[1/120,1/120],[0,0]);
+}
+function edgeTexture(plies,t){ // tranche coupée au laser : plis visibles, bord brûlé
+  return canvasTex(16,256,(x,w,h)=>{
+    const ph=h/plies;
+    for(let i=0;i<plies;i++){x.fillStyle=i%2?'#8a5b2e':'#9c6a38';x.fillRect(0,i*ph,w,ph);}
+    for(let i=0;i<500;i++){x.fillStyle=`rgba(40,20,8,${Math.random()*.18})`;x.fillRect(Math.random()*w,Math.random()*h,1,1+Math.random()*2);}
+    x.fillStyle='rgba(35,18,8,.7)';
+    for(let i=1;i<plies;i++)x.fillRect(0,i*ph-1,w,2);
+  },[1/20,1/t],[0,((-1/t)%1+1)%1]);
+}
+function applyMode(){
+  const fx=realMode&&!!result;
+  scene.background=new THREE.Color(fx?0xd7d0c4:0x14161a);
+  grid.visible=!fx;sun.visible=fx;hemi.intensity=fx?.8:0;
+  ambient.intensity=fx?.35:.6;dl.intensity=fx?.25:1.1;dl2.intensity=fx?.1:.4;
+  renderer.toneMapping=fx?THREE.ACESFilmicToneMapping:THREE.NoToneMapping;
+  if(modelMesh)modelMesh.material.needsUpdate=true;
+  table.material.needsUpdate=true;
+  $('tabReal').classList.toggle('on',realMode);
+  if(result)buildPreview();
 }
 function buildPreview(){
   clearPieces();
-  const {pieces,t,plateT,bounds}=result;
-  const mat=new THREE.MeshStandardMaterial({color:0xd9b382,roughness:.8,side:THREE.DoubleSide});
+  const {pieces,t,plateT,bounds,mn,mx}=result,real=realMode;
+  const v2=q=>new THREE.Vector2(q[0],q[1]);
+  const plain=new THREE.MeshStandardMaterial({color:0xd9b382,roughness:.8,side:THREE.DoubleSide});
+  const red=new THREE.MeshStandardMaterial({color:0xe53935,emissive:0x5a0b0b,roughness:.6,side:THREE.DoubleSide});
   const lineMat=new THREE.LineBasicMaterial({color:0x6b4a22});
-  const mk=geom=>{
+  const plyN=v=>Math.min(9,Math.max(2,Math.round(v)));
+  let pieceSide=null,plateSide=null;
+  if(real){
+    if(!faceBases)faceBases=[0,1,2,3].map(faceTexture);
+    pieceSide=new THREE.MeshStandardMaterial({map:edgeTexture(plyN(t),t),roughness:.9,side:THREE.DoubleSide});
+    plateSide=new THREE.MeshStandardMaterial({map:edgeTexture(plyN(plateT),plateT),roughness:.9,side:THREE.DoubleSide});
+  }
+  const faceMat=()=>{
+    const f=faceBases[Math.floor(Math.random()*faceBases.length)].clone();f.needsUpdate=true;f.offset.set(Math.random(),Math.random());
+    return new THREE.MeshStandardMaterial({map:f,roughness:.75,side:THREE.DoubleSide});
+  };
+  const shapesOf=(geom,pick)=>{
     const shapes=[];
-    for(const poly of geom){
-      const sh=new THREE.Shape(poly[0].map(p=>new THREE.Vector2(p[0],p[1])));
-      for(let k=1;k<poly.length;k++)sh.holes.push(new THREE.Path(poly[k].map(p=>new THREE.Vector2(p[0],p[1]))));
+    geom.forEach((poly,k)=>{
+      if(!pick(k))return;
+      const sh=new THREE.Shape(poly[0].map(v2));
+      for(let i=1;i<poly.length;i++)sh.holes.push(new THREE.Path(poly[i].map(v2)));
       shapes.push(sh);
-    }
-    return new THREE.ExtrudeGeometry(shapes,{depth:t,bevelEnabled:false});
+    });
+    return shapes;
   };
   for(const p of pieces){
     if(!p.geom)continue;
-    const g=mk(p.geom);
     const {nx,ny,dx,dy,ox,oy}=p.pl;
     // forme (b,z) -> monde : b le long de d, z vertical, extrusion le long de n (centrée sur le plan)
     const m=new THREE.Matrix4().set(dx,0,nx,ox-t/2*nx, dy,0,ny,oy-t/2*ny, 0,1,0,0, 0,0,0,1);
-    g.applyMatrix4(m);
-    const mesh=new THREE.Mesh(g,mat);
-    mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(g,30),lineMat));
-    pieceGroup.add(mesh);
+    for(const bad of [false,true]){
+      const shapes=shapesOf(p.geom,k=>!!(p.bad&&p.bad.has(k))===bad);
+      if(!shapes.length)continue;
+      const g=new THREE.ExtrudeGeometry(shapes,{depth:t,bevelEnabled:false});
+      g.applyMatrix4(m);
+      const mesh=new THREE.Mesh(g,bad?red:(real?[faceMat(),pieceSide]:plain));
+      mesh.castShadow=mesh.receiveShadow=real;
+      if(!real)mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(g,30),lineMat));
+      pieceGroup.add(mesh);
+    }
   }
   // plateau
-  const v2=q=>new THREE.Vector2(q[0],q[1]);
   const sh=new THREE.Shape([[bounds.pX0,bounds.pY0],[bounds.pX1,bounds.pY0],[bounds.pX1,bounds.pY1],[bounds.pX0,bounds.pY1]].map(v2));
   for(const s of result.slots)sh.holes.push(new THREE.Path(s.pts.map(v2)));
   const pg=new THREE.ExtrudeGeometry(sh,{depth:plateT,bevelEnabled:false});pg.translate(0,0,-plateT);
-  const pm=new THREE.Mesh(pg,new THREE.MeshStandardMaterial({color:0xb98d5a,roughness:.85,side:THREE.DoubleSide}));
-  pm.add(new THREE.LineSegments(new THREE.EdgesGeometry(pg,30),lineMat));
+  const pm=new THREE.Mesh(pg,real?[faceMat(),plateSide]:new THREE.MeshStandardMaterial({color:0xb98d5a,roughness:.85,side:THREE.DoubleSide}));
+  pm.castShadow=pm.receiveShadow=real;
+  if(!real)pm.add(new THREE.LineSegments(new THREE.EdgesGeometry(pg,30),lineMat));
   pieceGroup.add(pm);
-  modelMesh.material.opacity=0.12;modelMesh.material.depthWrite=false;
+  // modèle d'origine, table et ombres
+  modelMesh.visible=!real;
+  if(!real){modelMesh.material.opacity=0.12;modelMesh.material.depthWrite=false;}
+  const ext=Math.max(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2])+80;
+  table.visible=real;table.scale.setScalar(ext*40);table.position.z=-plateT-0.02;
+  sun.position.set(ext*0.6,-ext*0.9,ext*1.4);sun.target.position.set(0,0,0);
+  const sc=sun.shadow.camera,R=ext*0.8;sc.left=-R;sc.right=R;sc.top=R;sc.bottom=-R;sc.near=1;sc.far=ext*6;sc.updateProjectionMatrix();
+  sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.4;
 }
 
 /* ---------------- Générateur de tore ---------------- */
@@ -581,7 +664,8 @@ let lastGen=null;
 function makeTorus(){
   const shape=$('gShape').value,Do=+$('gDo').value,Di=+$('gDi').value,
         n=Math.max(3,Math.round(+$('gN').value||5)),L=+$('gL').value,rd=+$('gR').value,
-        twIn=+$('gTw').value||0,sink=Math.max(0,+$('gSink').value||0);
+        twIn=+$('gTw').value||0,sink=Math.max(0,+$('gSink').value||0),
+        Smax=Math.max(0.1,(+$('gS').value||100)/100),cyc=Math.max(1,Math.round(+$('gCyc').value||1));
   if(!(Do>Di&&Di>0)){msg('','Le diamètre extérieur doit être supérieur au diamètre intérieur.');return;}
   if(shape==='draw'&&!drawnPoly){msg('','Dessine d\'abord une forme avec le bouton « Dessiner à la main ».');return;}
   const rho=(Do-Di)/4,Rc=(Do+Di)/4;
@@ -593,11 +677,16 @@ function makeTorus(){
   // twist compatible avec la symétrie pour que le tore se referme
   const step=360/sym,m=Math.round(twIn/step),twist=m*step,shift=((m*(nv/sym))%nv+nv)%nv;
   const nu=180,V=new Float64Array(nu*nv*3);
+  if(rho*Math.max(1,Smax)>=Rc*0.98){msg('','Variation de taille trop grande : la section de '+(2*rho*Smax).toFixed(0)+' mm fermerait le trou du tore. Réduis la taille max ou agrandis le tore.');return;}
+  const zr=new Float64Array(nv);
   for(let i=0;i<nu;i++){
     const u=2*Math.PI*i/nu,th=(twist*Math.PI/180)*i/nu,c=Math.cos(th),s=Math.sin(th),cu=Math.cos(u),su=Math.sin(u);
+    const sc=1+(Smax-1)*(1-Math.cos(cyc*u))/2; // progressif : 1 au départ, Smax à mi-cycle
+    let zl=1e18;
+    for(let j=0;j<nv;j++){zr[j]=(prof[j][0]*s+prof[j][1]*c)*sc;zl=Math.min(zl,zr[j]);}
     for(let j=0;j<nv;j++){
-      const x=prof[j][0]*c-prof[j][1]*s,z=prof[j][0]*s+prof[j][1]*c,rad=Rc+x,o=(i*nv+j)*3;
-      V[o]=rad*cu;V[o+1]=rad*su;V[o+2]=z;
+      const x=(prof[j][0]*c-prof[j][1]*s)*sc,rad=Rc+x,o=(i*nv+j)*3;
+      V[o]=rad*cu;V[o+1]=rad*su;V[o+2]=zr[j]-zl; // chaque section repose sur le plan z=0
     }
   }
   let zmin=1e18,zmax=-1e18;
@@ -624,6 +713,7 @@ function makeTorus(){
   let info=`Tore ${shape} : Ø ${Do} / ${Di} mm, section Ø ${(2*rho).toFixed(1)} mm, ${Fi.length/3} triangles`;
   if(Math.abs(twist-twIn)>0.01)info+=`\nTwist ajusté à ${twist}° (multiple de ${step.toFixed(1)}° pour que le tore se referme).`;
   else if(twist>0)info+=`\nTwist : ${twist}°`;
+  if(Math.abs(Smax-1)>0.001)info+=`\nTaille : 100 % → ${Math.round(Smax*100)} % (${cyc} cycle${cyc>1?'s':''}), variation progressive.`;
   if(sink>0)info+=`\nEnfoncement : ${sink} mm (bas aplati).`;
   msg(info,'');
 }
@@ -747,6 +837,10 @@ const show=m=>{
   $('view2d').style.display=m==='2d'?'block':'none';
   $('tab3d').classList.toggle('on',m==='3d');$('tab2d').classList.toggle('on',m==='2d');
   if(m==='3d')fit();
+};
+$('tabReal').onclick=()=>{
+  if(!result){msg('','Génère d\'abord les pièces pour voir le rendu réel.');return;}
+  realMode=!realMode;applyMode();show('3d');
 };
 $('tab3d').onclick=()=>show('3d');$('tab2d').onclick=()=>show('2d');
 </script>
