@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slicer laser – maquette en tranches</title>
+<style>
+  :root{--bg:#14161a;--panel:#1d2025;--line:#2d3138;--txt:#e6e8eb;--mut:#9aa1ab;--acc:#e0a458}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--txt);display:grid;grid-template-columns:340px 1fr;height:100vh}
+  aside{background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow:auto}
+  h1{font-size:17px;margin:0 0 4px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:18px 0 6px}
+  p.s{color:var(--mut);margin:0 0 8px;font-size:12px}
+  label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:5px 0}
+  input[type=number],select{width:110px;background:#111317;color:var(--txt);border:1px solid var(--line);border-radius:5px;padding:5px}
+  input[type=file]{width:100%;font-size:12px}
+  button{background:#2a2f37;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:7px 10px;cursor:pointer}
+  button:hover{border-color:var(--acc)}
+  button.p{background:var(--acc);color:#1a1205;border-color:var(--acc);font-weight:600}
+  .row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+  #info{font-size:12px;color:var(--mut);white-space:pre-wrap;margin-top:8px}
+  #warn{font-size:12px;color:#ff8f7a;white-space:pre-wrap;margin-top:6px}
+  main{position:relative;min-width:0}
+  #view3d,#view2d{position:absolute;inset:0}
+  #view2d{display:none;overflow:auto;background:#fff;padding:12px}
+  #view2d svg{max-width:100%;height:auto;display:block}
+  .tabs{position:absolute;top:10px;right:10px;z-index:5;display:flex;gap:6px}
+  .tabs button.on{border-color:var(--acc);color:var(--acc)}
+  @media(max-width:800px){body{grid-template-columns:1fr;grid-template-rows:auto 60vh;height:auto}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js"></script>
+</head>
+<body>
+<aside>
+  <h1>Maquette en tranches</h1>
+  <p class="s">STL / 3MF → pièces SVG pour découpe laser (tranches + ergots + plateau à fentes). Unités : mm.</p>
+
+  <h2>1. Modèle</h2>
+  <input type="file" id="file" accept=".stl,.3mf">
+  <div class="row"><button id="demo">Exemple</button></div>
+  <div class="row">
+    <button data-rot="x">Tourner X 90°</button>
+    <button data-rot="y">Tourner Y 90°</button>
+    <button data-rot="z">Tourner Z 90°</button>
+  </div>
+  <p class="s">Le modèle doit être posé « à plat » : le bas (Z min) touche le plateau.</p>
+  <label>Échelle (%) <input type="number" id="scale" value="100" min="1" step="1"></label>
+
+  <h2>2. Coupe</h2>
+  <label>Axe de coupe
+    <select id="axis"><option value="0">X</option><option value="1">Y</option><option value="R">Rayonnant (axe Z)</option></select></label>
+  <label>Centre de rotation X (mm) <input type="number" id="cx" value="0" step="0.5"></label>
+  <label>Centre de rotation Y (mm) <input type="number" id="cy" value="0" step="0.5"></label>
+  <p class="s">Mode rayonnant : les pièces sont des demi-plans autour de l'axe vertical Z (tore, vase…). Le centre (0, 0) est le milieu du modèle ; les champs X/Y ne servent qu'en mode rayonnant.</p>
+  <label>Épaisseur du bois (mm) <input type="number" id="t" value="3" min="0.5" step="0.1"></label>
+  <label>Nombre de pièces <input type="number" id="n" value="12" min="1" step="1"></label>
+
+  <h2>3. Plateau &amp; ergots</h2>
+  <label>Épaisseur du plateau (mm) <input type="number" id="pt" value="3" min="0.5" step="0.1"></label>
+  <label>Largeur d'ergot (mm) <input type="number" id="tw" value="8" min="2" step="0.5"></label>
+  <label>Hauteur de scan (mm) <input type="number" id="off" value="1.5" min="0.1" step="0.1"></label>
+  <label>Jeu des fentes (mm) <input type="number" id="clr" value="0.1" min="0" step="0.05"></label>
+  <label>Marge du plateau (mm) <input type="number" id="mar" value="10" min="0" step="1"></label>
+
+  <h2>4. Export</h2>
+  <label>Largeur planche laser (mm) <input type="number" id="sheetW" value="600" min="50" step="10"></label>
+  <label>Repères sous les pièces <input type="checkbox" id="lbl" checked></label>
+  <div class="row"><button class="p" id="gen">Générer</button></div>
+  <div class="row">
+    <button id="dlZip">ZIP (1 SVG / pièce)</button>
+    <button id="dlSheet">Planche unique</button>
+    <button id="dlPlate">Plateau</button>
+  </div>
+  <div id="info"></div>
+  <div id="warn"></div>
+</aside>
+
+<main>
+  <div class="tabs">
+    <button id="tab3d" class="on">3D</button>
+    <button id="tab2d">Planche 2D</button>
+  </div>
+  <div id="view3d"></div>
+  <div id="view2d"></div>
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+const $ = id => document.getElementById(id);
+let baseV = null, F = null, baseName = 'maquette';
+let result = null;
+
+/* ---------------- Import ---------------- */
+function weld(pos){
+  const map = new Map(), V = [], Fi = [];
+  const key = (x,y,z) => Math.round(x*1000)+','+Math.round(y*1000)+','+Math.round(z*1000);
+  for(let i=0;i+8<pos.length;i+=9){
+    const idx=[0,1,2].map(k=>{
+      const x=pos[i+3*k],y=pos[i+3*k+1],z=pos[i+3*k+2], kk=key(x,y,z);
+      let id=map.get(kk);
+      if(id===undefined){id=V.length/3;V.push(x,y,z);map.set(kk,id);}
+      return id;
+    });
+    if(idx[0]!==idx[1]&&idx[1]!==idx[2]&&idx[0]!==idx[2]) Fi.push(idx[0],idx[1],idx[2]);
+  }
+  return {V:Float64Array.from(V),F:Uint32Array.from(Fi)};
+}
+function parseSTL(buf){
+  const dv=new DataView(buf);
+  if(buf.byteLength>=84){
+    const n=dv.getUint32(80,true);
+    if(buf.byteLength===84+50*n){
+      const pos=new Float32Array(n*9);
+      for(let i=0;i<n;i++){const o=84+i*50+12;for(let k=0;k<9;k++)pos[i*9+k]=dv.getFloat32(o+k*4,true);}
+      return pos;
+    }
+  }
+  const txt=new TextDecoder().decode(buf);
+  const re=/vertex\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)/g, arr=[]; let m;
+  while((m=re.exec(txt))) arr.push(+m[1],+m[2],+m[3]);
+  return Float32Array.from(arr);
+}
+async function parse3MF(buf){
+  const zip=await JSZip.loadAsync(buf);
+  const names=Object.keys(zip.files).filter(n=>n.toLowerCase().endsWith('.model'));
+  if(!names.length) throw new Error('Aucun fichier .model dans le 3MF');
+  const mainName=names.find(n=>/(^|\/)3D\/3dmodel\.model$/i.test(n))||names[0];
+  const docs={};
+  for(const n of names){
+    const doc=new DOMParser().parseFromString(await zip.file(n).async('string'),'application/xml');
+    const unitName=(doc.getElementsByTagName('model')[0]?.getAttribute('unit')||'millimeter').toLowerCase();
+    const unit={micron:.001,millimeter:1,centimeter:10,meter:1000,inch:25.4,foot:304.8}[unitName]||1;
+    const objs={};
+    for(const o of doc.getElementsByTagName('object')){
+      const id=o.getAttribute('id');
+      const mesh=o.getElementsByTagName('mesh')[0];
+      if(mesh){
+        const vs=[...mesh.getElementsByTagName('vertex')].map(v=>[+v.getAttribute('x'),+v.getAttribute('y'),+v.getAttribute('z')]);
+        const ts=[...mesh.getElementsByTagName('triangle')].map(t=>[+t.getAttribute('v1'),+t.getAttribute('v2'),+t.getAttribute('v3')]);
+        objs[id]={vs,ts};
+      }else{
+        objs[id]={comps:[...o.getElementsByTagName('component')].map(c=>({
+          id:c.getAttribute('objectid'),
+          path:(c.getAttribute('p:path')||'').replace(/^\//,''),
+          tr:c.getAttribute('transform')
+        }))};
+      }
+    }
+    docs[n]={doc,unit,objs};
+  }
+  const parseTr=s=>s?s.trim().split(/\s+/).map(Number):null;
+  const apply=(t,p)=>t?[t[0]*p[0]+t[3]*p[1]+t[6]*p[2]+t[9],t[1]*p[0]+t[4]*p[1]+t[7]*p[2]+t[10],t[2]*p[0]+t[5]*p[1]+t[8]*p[2]+t[11]]:p;
+  const out=[];
+  const emit=(file,id,chain)=>{
+    const d=docs[file]; const o=d&&d.objs[id]; if(!o) return;
+    if(o.vs){
+      for(const t of o.ts){
+        for(const vi of t){
+          let p=o.vs[vi];
+          for(let k=chain.length-1;k>=0;k--) p=apply(chain[k],p);
+          out.push(p[0]*d.unit,p[1]*d.unit,p[2]*d.unit);
+        }
+      }
+    }else{
+      for(const c of o.comps) emit(c.path&&docs[c.path]?c.path:file,c.id,[...chain,parseTr(c.tr)]);
+    }
+  };
+  const main=docs[mainName];
+  const items=[...main.doc.getElementsByTagName('item')];
+  if(items.length){
+    for(const it of items) emit(mainName,it.getAttribute('objectid'),[parseTr(it.getAttribute('transform'))]);
+  }else{
+    for(const id of Object.keys(main.objs)) emit(mainName,id,[]);
+  }
+  return Float32Array.from(out);
+}
+
+/* ---------------- Maillage ---------------- */
+function normalize(){
+  let mn=[1e18,1e18,1e18],mx=[-1e18,-1e18,-1e18];
+  for(let i=0;i<baseV.length;i+=3)for(let k=0;k<3;k++){mn[k]=Math.min(mn[k],baseV[i+k]);mx[k]=Math.max(mx[k],baseV[i+k]);}
+  const cx=(mn[0]+mx[0])/2,cy=(mn[1]+mx[1])/2;
+  for(let i=0;i<baseV.length;i+=3){baseV[i]-=cx;baseV[i+1]-=cy;baseV[i+2]-=mn[2];}
+}
+function rotate(ax){
+  for(let i=0;i<baseV.length;i+=3){
+    const x=baseV[i],y=baseV[i+1],z=baseV[i+2];
+    if(ax==='x'){baseV[i+1]=-z;baseV[i+2]=y;}
+    else if(ax==='y'){baseV[i]=z;baseV[i+2]=-x;}
+    else{baseV[i]=-y;baseV[i+1]=x;}
+  }
+  normalize();
+}
+function working(){
+  const s=(+$('scale').value||100)/100, W=new Float64Array(baseV.length);
+  for(let i=0;i<W.length;i++)W[i]=baseV[i]*s;
+  return W;
+}
+function setMesh(pos,name){
+  const w=weld(pos);
+  if(!w.F.length) throw new Error('Aucun triangle valide trouvé');
+  baseV=w.V;F=w.F;baseName=name;result=null;
+  normalize();refreshModel(true);
+}
+
+/* ---------------- Découpe ---------------- */
+// Plan de coupe : normale n=(nx,ny), direction du profil d=(dx,dy), origine P0=(ox,oy).
+// s = (P-P0)·n ; b = (P-P0)·d ; le profil 2D est (b, z).
+function slicePlane(V,pl){
+  const {nx,ny,dx,dy,ox,oy}=pl;
+  const nV=V.length/3, side=new Uint8Array(nV), S=new Float64Array(nV), Bv=new Float64Array(nV);
+  for(let i=0;i<nV;i++){
+    const x=V[3*i]-ox,y=V[3*i+1]-oy;
+    S[i]=x*nx+y*ny;Bv[i]=x*dx+y*dy;side[i]=S[i]>=0?1:0;
+  }
+  const pts=new Map(), adj=new Map(), segs=[];
+  const edge=(p,q)=>{
+    if(p>q){const t=p;p=q;q=t;}
+    const k=p*nV+q;
+    if(!pts.has(k)){
+      const t=(0-S[p])/(S[q]-S[p]);
+      pts.set(k,[Bv[p]+t*(Bv[q]-Bv[p]),V[3*p+2]+t*(V[3*q+2]-V[3*p+2])]);
+    }
+    return k;
+  };
+  for(let f=0;f<F.length;f+=3){
+    const a=F[f],b=F[f+1],d=F[f+2];
+    const sa=side[a],sb=side[b],sd=side[d];
+    if(sa===sb&&sb===sd)continue;
+    const es=[];
+    if(sa!==sb)es.push(edge(a,b));
+    if(sb!==sd)es.push(edge(b,d));
+    if(sd!==sa)es.push(edge(d,a));
+    if(es.length!==2)continue;
+    const si=segs.length;segs.push(es);
+    for(const e of es){let l=adj.get(e);if(!l){l=[];adj.set(e,l);}l.push(si);}
+  }
+  const used=new Uint8Array(segs.length),loops=[];let open=0;
+  for(let s=0;s<segs.length;s++){
+    if(used[s])continue;
+    const loop=[];let cur=s,eIn=segs[s][0],closed=false;
+    while(true){
+      used[cur]=1;
+      const [a,b]=segs[cur],eOut=(a===eIn)?b:a;
+      loop.push(pts.get(eIn));
+      if(eOut===segs[s][0]){closed=true;break;}
+      let nxt=-1;
+      for(const q of adj.get(eOut))if(!used[q]){nxt=q;break;}
+      if(nxt<0)break;
+      cur=nxt;eIn=eOut;
+    }
+    if(closed&&loop.length>=3)loops.push(loop);else open++;
+  }
+  return {loops,open};
+}
+function tabsFromLoops(loops,z0,tabW,bMin=-Infinity){
+  const ys=[];
+  for(const l of loops)for(let j=0;j<l.length;j++){
+    const p=l[j],q=l[(j+1)%l.length];
+    if((p[1]<z0)!==(q[1]<z0))ys.push(p[0]+(z0-p[1])/(q[1]-p[1])*(q[0]-p[0]));
+  }
+  ys.sort((a,b)=>a-b);
+  const tabs=[];
+  for(let i=0;i+1<ys.length;i+=2){
+    const y1=Math.max(ys[i],bMin),y2=ys[i+1],L=y2-y1;
+    if(L<4)continue;
+    const n=Math.max(1,Math.floor(L/(tabW*2.5)));
+    const tw=Math.min(tabW,L/n-2);
+    if(tw<1.5)continue;
+    for(let k=0;k<n;k++){const yc=y1+(k+.5)*L/n;tabs.push([yc-tw/2,yc+tw/2]);}
+  }
+  return tabs;
+}
+
+function generate(){
+  if(!baseV){msg('','Importe d\'abord un modèle.');return;}
+  const t=+$('t').value,N=Math.max(1,Math.round(+$('n').value)),plateT=+$('pt').value,tabW=+$('tw').value,
+        off=+$('off').value,clr=+$('clr').value,mar=+$('mar').value,mode=$('axis').value,
+        cx=+$('cx').value||0,cy=+$('cy').value||0,radial=mode==='R',A=radial?0:+mode;
+  const V=working(),warns=[];
+  let mn=[1e18,1e18,1e18],mx=[-1e18,-1e18,-1e18];
+  for(let i=0;i<V.length;i+=3)for(let k=0;k<3;k++){mn[k]=Math.min(mn[k],V[i+k]);mx[k]=Math.max(mx[k],V[i+k]);}
+  // Plans de coupe
+  const planes=[];let spacing=0,infoStep='';
+  if(radial){
+    for(let i=0;i<N;i++){
+      const th=i*2*Math.PI/N,c=Math.cos(th),s=Math.sin(th);
+      planes.push({nx:-s,ny:c,dx:c,dy:s,ox:cx,oy:cy,i,theta:th});
+    }
+    infoStep=`Rayonnant : ${N} demi-plans autour de l'axe Z (pas ${(360/N).toFixed(2)}°)`;
+  }else{
+    const extent=mx[A]-mn[A];
+    if(extent<t){msg('','L\'épaisseur du bois dépasse la taille du modèle sur cet axe.');return;}
+    spacing=N>1?(extent-t)/(N-1):extent;
+    for(let i=0;i<N;i++){
+      const u=N===1?(mn[A]+mx[A])/2:mn[A]+t/2+i*(extent-t)/(N-1);
+      planes.push(A===0?{nx:1,ny:0,dx:0,dy:1,ox:u,oy:0,i}:{nx:0,ny:1,dx:1,dy:0,ox:0,oy:u,i});
+    }
+    infoStep=`Pas entre pièces : ${spacing.toFixed(2)} mm (vide ${(spacing-t).toFixed(2)} mm)`;
+    if(N>1&&spacing<t)warns.push(`Les pièces se chevauchent : pas ${spacing.toFixed(2)} mm < épaisseur ${t} mm. Réduis le nombre de pièces (max ≈ ${Math.floor((extent-t)/t)+1}).`);
+  }
+  const pieces=[];let openTotal=0,noTab=0;
+  const halfRect=[[[0,-1e5],[1e5,-1e5],[1e5,1e5],[0,1e5],[0,-1e5]]];
+  for(const pl of planes){
+    const i=pl.i;
+    const {loops,open}=slicePlane(V,pl);
+    openTotal+=open;
+    if(!loops.length){pieces.push({i,pl,geom:null,tabs:[]});continue;}
+    let geom=polygonClipping.xor(...loops.map(l=>[[l.concat([l[0]])]]));
+    if(radial){geom=polygonClipping.intersection(geom,halfRect);if(!geom.length){pieces.push({i,pl,geom:null,tabs:[]});continue;}}
+    const tabs=tabsFromLoops(loops,off,tabW,radial?0:-Infinity);
+    if(!tabs.length)noTab++;
+    const rects=tabs.map(([a,b])=>[[[a,-plateT],[b,-plateT],[b,off],[a,off],[a,-plateT]]]);
+    if(rects.length)geom=polygonClipping.union(geom,...rects);
+    pieces.push({i,pl,geom,tabs});
+  }
+  const valid=pieces.filter(p=>p.geom);
+  if(!valid.length){msg('','Aucune section trouvée.');return;}
+  if(openTotal)warns.push(`${openTotal} contour(s) ouvert(s) ignoré(s) : le maillage n'est pas étanche.`);
+  if(noTab)warns.push(`${noTab} pièce(s) sans ergot (pas de surface plate près du bas). Augmente la « hauteur de scan » ou pose mieux le modèle.`);
+  if(radial&&N>1){
+    let rmin=1e18;
+    for(const p of valid)for(const poly of p.geom)for(const r of poly)for(const q of r)rmin=Math.min(rmin,q[0]);
+    if(2*rmin*Math.sin(Math.PI/N)<t)warns.push(`Pièces trop serrées près de l'axe : à r = ${rmin.toFixed(1)} mm l'écart entre pièces (${(2*rmin*Math.sin(Math.PI/N)).toFixed(1)} mm) est inférieur à l'épaisseur du bois. Réduis le nombre de pièces ou évide le centre.`);
+  }
+
+  // Plateau (coordonnées monde X,Y)
+  const pX0=mn[0]-mar,pX1=mx[0]+mar,pY0=mn[1]-mar,pY1=mx[1]+mar;
+  const slots=[];
+  for(const p of pieces){
+    const {nx,ny,dx,dy,ox,oy}=p.pl,h=(t+clr)/2;
+    for(const [a,b] of p.tabs){
+      const r0=a-clr/2,r1=b+clr/2;
+      const pt=(r,s)=>[ox+r*dx+s*nx,oy+r*dy+s*ny];
+      slots.push({n:p.i+1,pts:[pt(r0,-h),pt(r1,-h),pt(r1,h),pt(r0,h)]});
+    }
+  }
+
+  // SVG
+  const showL=$('lbl').checked,fmt=v=>v.toFixed(3);
+  const items=[];
+  const plateW=pX1-pX0,plateH=pY1-pY0;
+  const sx=x=>x-pX0,sy=y=>pY1-y; // vue de dessus (Y vers le haut)
+  let pin=`<path d="M0 0H${fmt(plateW)}V${fmt(plateH)}H0Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
+  for(const s of slots){
+    pin+=`<path d="${s.pts.map((q,k)=>(k?'L':'M')+fmt(sx(q[0]))+' '+fmt(sy(q[1]))).join('')}Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
+  }
+  if(showL){
+    const seen=new Set();
+    for(const s of slots){if(seen.has(s.n))continue;seen.add(s.n);
+      const q=s.pts[1];
+      pin+=`<text x="${fmt(sx(q[0]))}" y="${fmt(sy(q[1]))}" font-size="2.5" fill="#0000ff" font-family="sans-serif">${s.n}</text>`;}
+  }
+  const plate={w:plateW,h:plateH,inner:pin};
+  const pieceItems=[];
+  for(const p of valid){
+    let x0=1e18,x1=-1e18,z0=1e18,z1=-1e18;
+    for(const poly of p.geom)for(const r of poly)for(const q of r){x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);z0=Math.min(z0,q[1]);z1=Math.max(z1,q[1]);}
+    const w=x1-x0,h=z1-z0,extra=showL?6:0;
+    let d='';
+    for(const poly of p.geom)for(const r of poly){
+      r.forEach((q,k)=>{d+=(k?'L':'M')+fmt(q[0]-x0)+' '+fmt(z1-q[1]);});d+='Z';
+    }
+    let inner=`<path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
+    if(showL)inner+=`<text x="0" y="${fmt(h+4.5)}" font-size="3.5" fill="#0000ff" font-family="sans-serif">${p.i+1}</text>`;
+    pieceItems.push({n:p.i+1,w,h:h+extra,inner});
+  }
+  const wrap=(inner,w,h)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${fmt(w)}mm" height="${fmt(h)}mm" viewBox="0 0 ${fmt(w)} ${fmt(h)}">${inner}</svg>`;
+  const sheetW=+$('sheetW').value||600,gap=5;
+  const layoutItems=[plate,...pieceItems];
+  let x=gap,y=gap,rowH=0,g='';
+  for(const it of layoutItems){
+    if(x+it.w+gap>sheetW&&x>gap){x=gap;y+=rowH+gap;rowH=0;}
+    g+=`<g transform="translate(${fmt(x)} ${fmt(y)})">${it.inner}</g>`;
+    x+=it.w+gap;rowH=Math.max(rowH,it.h);
+  }
+  const sheetH=y+rowH+gap;
+  const files={};
+  files[`${baseName}_plateau.svg`]=wrap(plate.inner,plate.w,plate.h);
+  for(const it of pieceItems)files[`${baseName}_piece_${String(it.n).padStart(2,'0')}.svg`]=wrap(it.inner,it.w,it.h);
+  files[`${baseName}_planche.svg`]=wrap(g,Math.max(sheetW,x),sheetH);
+  result={files,sheet:files[`${baseName}_planche.svg`],plate:files[`${baseName}_plateau.svg`],pieces,slots,t,plateT,
+          bounds:{pX0,pX1,pY0,pY1},mn,mx};
+  $('view2d').innerHTML=result.sheet;
+  buildPreview();
+  msg(`Modèle : ${(mx[0]-mn[0]).toFixed(1)} × ${(mx[1]-mn[1]).toFixed(1)} × ${(mx[2]-mn[2]).toFixed(1)} mm\n${valid.length} pièces, ${slots.length} fentes\n${infoStep}\nPlateau : ${plateW.toFixed(1)} × ${plateH.toFixed(1)} mm\nTrait rouge = découpe, bleu = repère (à ignorer ou graver).`,warns.join('\n'));
+}
+function msg(i,w){$('info').textContent=i;$('warn').textContent=w;}
+
+/* ---------------- 3D ---------------- */
+const host=$('view3d');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+host.appendChild(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x14161a);
+const camera=new THREE.PerspectiveCamera(45,1,0.1,10000);camera.up.set(0,0,1);camera.position.set(150,-200,150);
+const controls=new OrbitControls(camera,renderer.domElement);
+scene.add(new THREE.AmbientLight(0xffffff,.6));
+const dl=new THREE.DirectionalLight(0xffffff,1.1);dl.position.set(200,-300,400);scene.add(dl);
+const dl2=new THREE.DirectionalLight(0xffffff,.4);dl2.position.set(-200,200,100);scene.add(dl2);
+const grid=new THREE.GridHelper(400,40,0x444a55,0x2a2f37);grid.rotation.x=Math.PI/2;grid.position.z=-0.01;scene.add(grid);
+let modelMesh=null;const pieceGroup=new THREE.Group();scene.add(pieceGroup);
+function fit(){
+  const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;
+  renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();
+}
+new ResizeObserver(fit).observe(host);fit();
+(function loop(){requestAnimationFrame(loop);controls.update();renderer.render(scene,camera);})();
+
+function refreshModel(refit){
+  if(modelMesh){scene.remove(modelMesh);modelMesh.geometry.dispose();}
+  const W=working(),g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(Float32Array.from(W),3));
+  g.setIndex(new THREE.BufferAttribute(F,1));g.computeVertexNormals();
+  modelMesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x9aa7b8,roughness:.6,side:THREE.DoubleSide,transparent:true,opacity:1}));
+  scene.add(modelMesh);
+  g.computeBoundingBox();const bb=g.boundingBox,size=new THREE.Vector3();bb.getSize(size);
+  $('info').textContent=`Modèle : ${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm (${F.length/3} triangles)`;
+  clearPieces();
+  if(refit){
+    const r=Math.max(size.x,size.y,size.z);
+    controls.target.set(0,0,size.z/2);
+    camera.position.set(r*1.2,-r*1.8,r*1.1);camera.near=r/100;camera.far=r*50;camera.updateProjectionMatrix();
+    grid.scale.setScalar(Math.max(1,r/200));
+  }
+}
+function clearPieces(){
+  while(pieceGroup.children.length){const o=pieceGroup.children.pop();o.traverse?.(c=>{c.geometry?.dispose();});}
+}
+function buildPreview(){
+  clearPieces();
+  const {pieces,t,plateT,bounds}=result;
+  const mat=new THREE.MeshStandardMaterial({color:0xd9b382,roughness:.8,side:THREE.DoubleSide});
+  const lineMat=new THREE.LineBasicMaterial({color:0x6b4a22});
+  const mk=geom=>{
+    const shapes=[];
+    for(const poly of geom){
+      const sh=new THREE.Shape(poly[0].map(p=>new THREE.Vector2(p[0],p[1])));
+      for(let k=1;k<poly.length;k++)sh.holes.push(new THREE.Path(poly[k].map(p=>new THREE.Vector2(p[0],p[1]))));
+      shapes.push(sh);
+    }
+    return new THREE.ExtrudeGeometry(shapes,{depth:t,bevelEnabled:false});
+  };
+  for(const p of pieces){
+    if(!p.geom)continue;
+    const g=mk(p.geom);
+    const {nx,ny,dx,dy,ox,oy}=p.pl;
+    // forme (b,z) -> monde : b le long de d, z vertical, extrusion le long de n (centrée sur le plan)
+    const m=new THREE.Matrix4().set(dx,0,nx,ox-t/2*nx, dy,0,ny,oy-t/2*ny, 0,1,0,0, 0,0,0,1);
+    g.applyMatrix4(m);
+    const mesh=new THREE.Mesh(g,mat);
+    mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(g,30),lineMat));
+    pieceGroup.add(mesh);
+  }
+  // plateau
+  const v2=q=>new THREE.Vector2(q[0],q[1]);
+  const sh=new THREE.Shape([[bounds.pX0,bounds.pY0],[bounds.pX1,bounds.pY0],[bounds.pX1,bounds.pY1],[bounds.pX0,bounds.pY1]].map(v2));
+  for(const s of result.slots)sh.holes.push(new THREE.Path(s.pts.map(v2)));
+  const pg=new THREE.ExtrudeGeometry(sh,{depth:plateT,bevelEnabled:false});pg.translate(0,0,-plateT);
+  const pm=new THREE.Mesh(pg,new THREE.MeshStandardMaterial({color:0xb98d5a,roughness:.85,side:THREE.DoubleSide}));
+  pm.add(new THREE.LineSegments(new THREE.EdgesGeometry(pg,30),lineMat));
+  pieceGroup.add(pm);
+  modelMesh.material.opacity=0.12;modelMesh.material.depthWrite=false;
+}
+
+/* ---------------- UI ---------------- */
+function download(name,data,type){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+$('file').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const buf=await f.arrayBuffer(),ext=f.name.split('.').pop().toLowerCase();
+    const pos=ext==='3mf'?await parse3MF(buf):parseSTL(buf);
+    setMesh(pos,f.name.replace(/\.[^.]+$/,''));
+  }catch(err){msg('','Erreur d\'import : '+err.message);}
+};
+$('demo').onclick=()=>{
+  const sh=new THREE.Shape();
+  for(let i=0;i<10;i++){const r=i%2?22:50,a=i/10*Math.PI*2;i?sh.lineTo(Math.cos(a)*r,Math.sin(a)*r):sh.moveTo(Math.cos(a)*r,Math.sin(a)*r);}
+  sh.closePath();
+  const hole=new THREE.Path();hole.absarc(0,0,10,0,Math.PI*2,true);sh.holes.push(hole);
+  const g=new THREE.ExtrudeGeometry(sh,{depth:30,bevelEnabled:false}).toNonIndexed();
+  setMesh(g.attributes.position.array,'exemple');
+};
+document.querySelectorAll('[data-rot]').forEach(b=>b.onclick=()=>{if(!baseV)return;rotate(b.dataset.rot);refreshModel(true);});
+$('scale').onchange=()=>{if(baseV)refreshModel(false);};
+$('gen').onclick=generate;
+$('dlSheet').onclick=()=>result?download(`${baseName}_planche.svg`,result.sheet,'image/svg+xml'):msg('','Génère d\'abord.');
+$('dlPlate').onclick=()=>result?download(`${baseName}_plateau.svg`,result.plate,'image/svg+xml'):msg('','Génère d\'abord.');
+$('dlZip').onclick=async()=>{
+  if(!result){msg('','Génère d\'abord.');return;}
+  const z=new JSZip();for(const [n,s] of Object.entries(result.files))z.file(n,s);
+  download(`${baseName}_svg.zip`,await z.generateAsync({type:'blob'}),'application/zip');
+};
+const show=m=>{
+  $('view3d').style.display=m==='3d'?'block':'none';
+  $('view2d').style.display=m==='2d'?'block':'none';
+  $('tab3d').classList.toggle('on',m==='3d');$('tab2d').classList.toggle('on',m==='2d');
+  if(m==='3d')fit();
+};
+$('tab3d').onclick=()=>show('3d');$('tab2d').onclick=()=>show('2d');
+</script>
+</body>
+</html>
