@@ -51,7 +51,12 @@
       <option value="polygon">Polygone (n côtés)</option>
       <option value="flower">Fleur (n pétales)</option>
       <option value="heart">Cœur</option>
+      <option value="draw">Dessin libre (à la main)</option>
     </select></label>
+  <div id="gDrawRow" class="row" style="display:none;align-items:center">
+    <button id="gDraw">Dessiner à la main…</button>
+    <canvas id="gPrev" width="64" height="64" style="border:1px solid var(--line);border-radius:6px;background:#111317"></canvas>
+  </div>
   <label>Ø extérieur (mm) <input type="number" id="gDo" value="300" min="20" step="1"></label>
   <label>Ø intérieur (mm) <input type="number" id="gDi" value="200" min="1" step="1"></label>
   <label id="gNRow">Nombre de pointes / côtés <input type="number" id="gN" value="5" min="3" max="24" step="1"></label>
@@ -105,6 +110,16 @@
   <div id="info"></div>
   <div id="warn"></div>
 </aside>
+
+<div id="drawModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;align-items:center;justify-content:center">
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;max-width:96vw">
+    <div style="margin-bottom:8px;font-weight:600">Dessine une forme fermée</div>
+    <canvas id="dCanvas" width="400" height="400" style="touch-action:none;width:min(86vw,400px);height:auto;background:#111317;border-radius:6px;cursor:crosshair;display:block"></canvas>
+    <p class="s" style="max-width:400px;margin-top:8px">Un seul trait continu : la forme se ferme toute seule. Le cercle pointillé représente la section du tore ; le point le plus éloigné du centre est ajusté dessus. Le dessin est recentré, et le twist ne peut valoir que 0°, 360° ou 720°.</p>
+    <p id="dMsg" class="s" style="color:#ff8f7a;margin:0 0 6px"></p>
+    <div class="row"><button id="dClear">Effacer</button><button id="dCancel">Annuler</button><button class="p" id="dOk">Valider</button></div>
+  </div>
+</div>
 
 <main>
   <div class="tabs">
@@ -523,6 +538,7 @@ function smoothClosed(pts,sigma){
     return [x/sw,y/sw];
   });
 }
+let drawnPoly=null; // contour dessiné à la main, coordonnées normalisées (y vers le haut)
 function makeProfile(shape,n,Lpct,roundPct){
   const TAU=2*Math.PI,up=Math.PI/2;
   let pts,sym;
@@ -534,6 +550,12 @@ function makeProfile(shape,n,Lpct,roundPct){
   if(shape==='square'){sym=4;poly=[0,1,2,3].map(k=>[Math.cos(Math.PI/4+k*Math.PI/2),Math.sin(Math.PI/4+k*Math.PI/2)]);}
   else if(shape==='triangle'){sym=3;poly=[0,1,2].map(k=>[Math.cos(up+k*TAU/3),Math.sin(up+k*TAU/3)]);}
   else if(shape==='polygon'){sym=n;poly=[...Array(n).keys()].map(k=>[Math.cos(up+k*TAU/n),Math.sin(up+k*TAU/n)]);}
+  else if(shape==='draw'){
+    sym=1;
+    const xs=drawnPoly.map(p=>p[0]),ys=drawnPoly.map(p=>p[1]);
+    const cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
+    poly=drawnPoly.map(p=>[p[0]-cx,p[1]-cy]);
+  }
   else if(shape==='star'){
     sym=n;const ri=1-Lpct/100;
     poly=[...Array(2*n).keys()].map(k=>{const a=up+k*Math.PI/n,r=k%2?ri:1;return [r*Math.cos(a),r*Math.sin(a)];});
@@ -561,6 +583,7 @@ function makeTorus(){
         n=Math.max(3,Math.round(+$('gN').value||5)),L=+$('gL').value,rd=+$('gR').value,
         twIn=+$('gTw').value||0,sink=Math.max(0,+$('gSink').value||0);
   if(!(Do>Di&&Di>0)){msg('','Le diamètre extérieur doit être supérieur au diamètre intérieur.');return;}
+  if(shape==='draw'&&!drawnPoly){msg('','Dessine d\'abord une forme avec le bouton « Dessiner à la main ».');return;}
   const rho=(Do-Di)/4,Rc=(Do+Di)/4;
   const {pts,sym}=makeProfile(shape,n,L,rd);
   const nv=pts.length;
@@ -624,8 +647,65 @@ function updateGenUI(){
   $('gNRow').style.display=['polygon','star','flower'].includes(s)?'flex':'none';
   $('gLRow').style.display=['star','flower'].includes(s)?'flex':'none';
   $('gRRow').style.display=s==='circle'?'none':'flex';
+  $('gDrawRow').style.display=s==='draw'?'flex':'none';
 }
-$('gShape').onchange=updateGenUI;updateGenUI();
+$('gShape').onchange=()=>{updateGenUI();if($('gShape').value==='draw'&&!drawnPoly)openDraw();};updateGenUI();
+
+/* ---- Dessin libre (popup) ---- */
+const dC=$('dCanvas'),dctx=dC.getContext('2d'),DG=160,DS=400;
+let dPts=[],dDrawing=false,dClosed=false;
+function dRedraw(){
+  dctx.clearRect(0,0,DS,DS);
+  dctx.strokeStyle='#2d3138';dctx.lineWidth=1;
+  dctx.beginPath();dctx.moveTo(DS/2,0);dctx.lineTo(DS/2,DS);dctx.moveTo(0,DS/2);dctx.lineTo(DS,DS/2);dctx.stroke();
+  dctx.setLineDash([6,5]);dctx.strokeStyle='#5b6370';
+  dctx.beginPath();dctx.arc(DS/2,DS/2,DG,0,Math.PI*2);dctx.stroke();dctx.setLineDash([]);
+  if(dPts.length>1){
+    dctx.beginPath();dPts.forEach((p,i)=>i?dctx.lineTo(p[0],p[1]):dctx.moveTo(p[0],p[1]));
+    if(dClosed){dctx.closePath();dctx.fillStyle='rgba(224,164,88,.25)';dctx.fill();}
+    dctx.strokeStyle='#e0a458';dctx.lineWidth=2.5;dctx.lineJoin='round';dctx.stroke();
+  }
+}
+function dPos(e){const r=dC.getBoundingClientRect();return [(e.clientX-r.left)*DS/r.width,(e.clientY-r.top)*DS/r.height];}
+dC.onpointerdown=e=>{e.preventDefault();dC.setPointerCapture(e.pointerId);dPts=[dPos(e)];dDrawing=true;dClosed=false;$('dMsg').textContent='';dRedraw();};
+dC.onpointermove=e=>{
+  if(!dDrawing)return;
+  const p=dPos(e),l=dPts[dPts.length-1];
+  if(Math.hypot(p[0]-l[0],p[1]-l[1])>2){dPts.push(p);dRedraw();}
+};
+const dEnd=()=>{if(!dDrawing)return;dDrawing=false;dClosed=dPts.length>=8;dRedraw();};
+dC.onpointerup=dEnd;dC.onpointercancel=dEnd;
+function openDraw(){$('drawModal').style.display='flex';dRedraw();}
+function closeDraw(){$('drawModal').style.display='none';}
+function drawPreview(){
+  const c=$('gPrev'),x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
+  if(!drawnPoly)return;
+  const xs=drawnPoly.map(p=>p[0]),ys=drawnPoly.map(p=>p[1]);
+  const cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
+  const r=Math.max(...drawnPoly.map(p=>Math.hypot(p[0]-cx,p[1]-cy)))||1,s=(c.width/2-4)/r;
+  x.beginPath();drawnPoly.forEach((p,i)=>{const X=c.width/2+(p[0]-cx)*s,Y=c.height/2-(p[1]-cy)*s;i?x.lineTo(X,Y):x.moveTo(X,Y);});
+  x.closePath();x.fillStyle='rgba(224,164,88,.35)';x.fill();x.strokeStyle='#e0a458';x.lineWidth=1.5;x.stroke();
+}
+function polyArea(r){let a=0;for(let i=0;i<r.length;i++){const p=r[i],q=r[(i+1)%r.length];a+=p[0]*q[1]-q[0]*p[1];}return a/2;}
+$('dOk').onclick=()=>{
+  if(!dClosed||dPts.length<12){$('dMsg').textContent='Dessine d\'abord une forme (un seul trait continu).';return;}
+  const ring=dPts.map(p=>[(p[0]-DS/2)/DG,-(p[1]-DS/2)/DG]);
+  let best=null,bestA=0;
+  try{
+    // résout les auto-intersections éventuelles du tracé
+    for(const poly of polygonClipping.union([[ring.concat([ring[0]])]])){
+      const a=Math.abs(polyArea(poly[0]));if(a>bestA){bestA=a;best=poly[0];}
+    }
+  }catch(e){best=null;}
+  if(!best||bestA<0.02){$('dMsg').textContent='Forme trop petite ou invalide, recommence.';return;}
+  drawnPoly=best.slice(0,-1);
+  drawPreview();closeDraw();
+  $('gShape').value='draw';updateGenUI();
+};
+$('dClear').onclick=()=>{dPts=[];dClosed=false;$('dMsg').textContent='';dRedraw();};
+$('dCancel').onclick=()=>{closeDraw();if(!drawnPoly&&$('gShape').value==='draw'){$('gShape').value='star';updateGenUI();}};
+$('gDraw').onclick=openDraw;
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('drawModal').style.display==='flex')$('dCancel').click();});
 $('gTw').oninput=()=>{$('gTwR').value=$('gTw').value;};
 $('gTwR').oninput=()=>{$('gTw').value=$('gTwR').value;};
 $('gMake').onclick=makeTorus;
