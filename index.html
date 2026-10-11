@@ -326,6 +326,12 @@
             </div></div></details>
           <div class="fld"><div class="lab">Taille du modèle</div>
             <div class="ctl"><input type="range" data-pair="scale" min="10" max="300" step="1"><input class="num" type="number" id="scale" value="100" min="1" step="1"><span class="u">%</span></div></div>
+
+          <h2 class="h2">Enfoncer dans la base</h2>
+          <p class="s" id="sinkHint">Pour ne garder qu'une coupe de ton modèle : la partie du bas est « enfoncée » dans le socle et disparaît. Tu obtiens une surface bien plate qui repose sur la base.</p>
+          <div class="fld"><div class="lab">Profondeur coupée</div>
+            <div class="ctl"><input type="range" data-pair="sinkCut" id="sinkRange" min="0" max="100" step="0.5"><input class="num" type="number" id="sinkCut" value="0" min="0" step="0.5"><span class="u">mm</span></div>
+            <p class="s" id="sinkInfo" style="margin-top:6px">Aucune coupe : le modèle repose entier sur la base.</p></div>
         </div>
 
         <div id="createPanel" hidden>
@@ -687,7 +693,7 @@ function working(){
 function setMesh(pos,name){
   const w=weld(pos);
   if(!w.F.length) throw new Error('Aucun triangle valide trouvé');
-  baseV=w.V;F=w.F;baseName=name;result=null;genShown=false;
+  baseV=w.V;F=w.F;baseName=name;result=null;genShown=false;resetSink();
   normalize();refreshModel(true);
 }
 
@@ -817,9 +823,10 @@ function generate(){
   const t=+$('t').value,N=Math.max(1,Math.round(+$('n').value)),plateT=+$('pt').value,tabW=+$('tw').value,
         off=+$('off').value,clr=+$('clr').value,mar=+$('mar').value,mode=$('axis').value,
         cx=+$('cx').value||0,cy=+$('cy').value||0,radial=mode==='R',A=radial?0:+mode;
-  const V=working(),warns=[];
+  const V=working(),warns=[];const sink=sinkNow();if(sink>0)for(let i=2;i<V.length;i+=3)V[i]-=sink;
   let mn=[1e18,1e18,1e18],mx=[-1e18,-1e18,-1e18];
   for(let i=0;i<V.length;i+=3)for(let k=0;k<3;k++){mn[k]=Math.min(mn[k],V[i+k]);mx[k]=Math.max(mx[k],V[i+k]);}
+  if(sink>0)mn[2]=Math.max(mn[2],0);
   // Plans de coupe
   const planes=[];let spacing=0,infoStep='';
   if(radial){
@@ -847,6 +854,7 @@ function generate(){
     openTotal+=open;
     if(!loops.length){pieces.push({i,pl,geom:null,tabs:[]});continue;}
     let geom=polygonClipping.xor(...loops.map(l=>[[l.concat([l[0]])]]));
+    if(sink>0){geom=polygonClipping.intersection(geom,[[[-1e5,0],[1e5,0],[1e5,1e5],[-1e5,1e5],[-1e5,0]]]);if(!geom.length){pieces.push({i,pl,geom:null,tabs:[]});continue;}}
     if(radial){geom=polygonClipping.intersection(geom,halfRect);if(!geom.length){pieces.push({i,pl,geom:null,tabs:[]});continue;}}
     const tabs=tabsFromLoops(loops,off,tabW,radial?0:-Infinity);
     if(!tabs.length)noTab++;
@@ -1019,7 +1027,7 @@ function refreshModel(refit){
   g.setIndex(new THREE.BufferAttribute(F,1));g.computeVertexNormals();
   modelMesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x6f8bff,roughness:.6,side:THREE.DoubleSide,transparent:true,opacity:1}));
   scene.add(modelMesh);
-  g.computeBoundingBox();const bb=g.boundingBox,size=new THREE.Vector3();bb.getSize(size);
+  g.computeBoundingBox();applySinkView();const bb=g.boundingBox,size=new THREE.Vector3();bb.getSize(size);
   msg('','');
   clearPieces();
   result=null;calc=null;stale=false;$('sheetCards').innerHTML='';$('stats2').hidden=true;$('genTxt').textContent='Calculer la découpe';onModelReady(size);
@@ -1522,7 +1530,7 @@ $('prev').onclick=()=>goStep(step-1);
 
 /* --- choix de départ --- */
 function setMode(m){
-  mode=m;
+  mode=m;if(typeof applySinkView==='function')applySinkView();
   $('modeChoice').hidden=!!m;$('importPanel').hidden=m!=='import';$('createPanel').hidden=m!=='create';
   if(m==='create'){setAxis('R');scheduleLive(0);}
 }
@@ -1601,6 +1609,24 @@ addEventListener('keydown',e=>{if(e.key==='Escape')$('helpModal').classList.remo
 /* --- démarrage --- */
 ['gShape','axis','sheetFmt'].forEach(syncTiles);
 syncChips();updateAxisHelp();goStep(1);show('3d');
+
+/* --- enfoncer le modèle importé dans la base (coupe plate) --- */
+function sinkNow(){return (mode==='import'&&baseV)?Math.max(0,+$('sinkCut').value||0):0;}
+function resetSink(){$('sinkCut').value=0;$('sinkRange').value=0;}
+function applySinkView(){
+  if(!modelMesh)return;
+  renderer.localClippingEnabled=true;
+  const bb=modelMesh.geometry.boundingBox,h=bb?bb.max.z-bb.min.z:0;
+  const mx=Math.max(0,Math.floor(h*0.9*2)/2);
+  $('sinkRange').max=mx;$('sinkCut').max=mx;
+  if(+$('sinkCut').value>mx){$('sinkCut').value=mx;$('sinkRange').value=mx;}
+  const s=sinkNow();
+  modelMesh.position.z=-s;
+  modelMesh.material.clippingPlanes=s>0?[new THREE.Plane(new THREE.Vector3(0,0,1),s)]:[];
+  modelMesh.material.needsUpdate=true;
+  $('sinkInfo').textContent=s>0?`${s} mm coupés en bas : il reste ${(h-s).toFixed(1)} mm de hauteur, posés sur une surface plate.`:'Aucune coupe : le modèle repose entier sur la base.';
+}
+$('sinkCut').addEventListener('input',()=>{applySinkView();if(result&&!stale){stale=true;$('genTxt').textContent='Recalculer la découpe';}});
 </script>
 </body>
 </html>
