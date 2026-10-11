@@ -3,37 +3,216 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Slicer laser – maquette en tranches</title>
+<title>Sliceo – tes formes 3D en bois découpé</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Figtree:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#14161a;--panel:#1d2025;--line:#2d3138;--txt:#e6e8eb;--mut:#9aa1ab;--acc:#e0a458}
+  :root{
+    --ink:#1b2340;--ink2:#4a5373;--bg:#f4f6ff;--paper:#fff;
+    --tomato:#ff5a36;--sky:#3a86ff;--mint:#14b88f;--lemon:#ffd23f;--pink:#ff6fb5;--grape:#7b5cff;
+    --ply:#ebcb9b;--ply2:#c99b5e;
+    --accent:var(--sky);--accent-soft:#dde8ff;
+    --sh:3px 3px 0 var(--ink);
+    --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+    --body:"Figtree","Segoe UI",system-ui,sans-serif;
+  }
+  body[data-step="2"]{--accent:var(--tomato);--accent-soft:#ffe3db}
+  body[data-step="3"]{--accent:var(--mint);--accent-soft:#d6f6ed}
   *{box-sizing:border-box}
-  body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--txt);display:grid;grid-template-columns:340px 1fr;height:100vh}
-  aside{background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow:auto}
-  h1{font-size:17px;margin:0 0 4px}
-  h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:18px 0 6px}
-  p.s{color:var(--mut);margin:0 0 8px;font-size:12px}
-  label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:5px 0}
-  input[type=number],select{width:110px;background:#111317;color:var(--txt);border:1px solid var(--line);border-radius:5px;padding:5px}
-  input[type=file]{width:100%;font-size:12px}
-  button{background:#2a2f37;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:7px 10px;cursor:pointer}
-  button:hover{border-color:var(--acc)}
-  button.p{background:var(--acc);color:#1a1205;border-color:var(--acc);font-weight:600}
-  .row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
-  #info{font-size:12px;color:var(--mut);white-space:pre-wrap;margin-top:8px}
-  #warn{font-size:12px;color:#ff8f7a;white-space:pre-wrap;margin-top:6px}
-  main{position:relative;min-width:0}
+  [hidden]{display:none!important}
+  html,body{height:100%}
+  body{margin:0;font:600 15px/1.45 var(--body);color:var(--ink);background:var(--bg);display:grid;grid-template-rows:auto auto 1fr;overflow:hidden}
+  svg.ic{width:1.3em;height:1.3em;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  :focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+
+  /* ---------- barre du haut ---------- */
+  .top{display:flex;align-items:center;gap:28px;padding:10px 22px;background:var(--paper)}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand b{font:800 26px/1 var(--display);letter-spacing:-.02em}
+  .brand small{display:block;font-weight:600;font-size:12px;color:var(--ink2);margin-top:2px}
+  #logo svg{width:44px;height:44px;display:block}
+  .steps{display:flex;align-items:center;gap:6px;margin:0 auto}
+  .step{display:flex;align-items:center;gap:10px;background:none;border:0;padding:4px 10px 4px 4px;border-radius:999px;cursor:pointer;color:var(--ink2);font:inherit;text-align:left}
+  .step .bub{width:38px;height:38px;border-radius:50%;border:2px solid var(--ink);background:#fff;display:grid;place-items:center;font:800 17px var(--display);color:var(--ink);flex:none}
+  .step .bub .ck{display:none}
+  .step b{display:block;font:700 15px/1.1 var(--display);color:var(--ink)}
+  .step small{font-size:12px;font-weight:600}
+  .step.on .bub{background:var(--accent);color:#fff;box-shadow:var(--sh);transform:translate(-1px,-1px)}
+  .step.done .bub{background:var(--ink);color:#fff}
+  .step.done .bub .n{display:none}.step.done .bub .ck{display:block}
+  .step:disabled{cursor:default;opacity:.55}
+  .link{width:34px;height:0;border-top:3px dotted var(--ink2);opacity:.5}
+  .help{margin-left:auto}
+  .edge{height:12px;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);background:repeating-linear-gradient(180deg,var(--ply) 0 4px,var(--ply2) 4px 5px,var(--ply) 5px 8px,var(--ply2) 8px 9px,var(--ply) 9px 12px);position:relative}
+  .edge::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--p,34%);background:repeating-linear-gradient(180deg,var(--accent) 0 4px,color-mix(in srgb,var(--accent) 70%,#000) 4px 5px,var(--accent) 5px 8px,color-mix(in srgb,var(--accent) 70%,#000) 8px 9px,var(--accent) 9px 12px);border-right:2px solid var(--ink);transition:width .6s cubic-bezier(.3,1.4,.5,1)}
+  body[data-step="2"] .edge{--p:67%}body[data-step="3"] .edge{--p:100%}
+
+  /* ---------- structure ---------- */
+  .app{display:grid;grid-template-columns:minmax(380px,430px) 1fr;min-height:0}
+  .panel{display:flex;flex-direction:column;min-height:0;background:var(--paper);border-right:2px solid var(--ink)}
+  .panes{flex:1;overflow:auto;padding:22px 22px 12px;scrollbar-width:thin}
+  .pane{display:none}
+  .pane.on{display:block}
+  .foot{display:flex;gap:10px;padding:14px 22px;border-top:2px solid var(--ink);background:var(--paper)}
+  .stage{position:relative;min-width:0;background:radial-gradient(#c5cdf3 1.4px,transparent 1.5px) 0 0/24px 24px,var(--bg)}
   #view3d,#view2d{position:absolute;inset:0}
-  #view2d{display:none;overflow:auto;background:#fff;padding:12px}
-  #view2d svg{max-width:100%;height:auto;display:block}
-  .tabs{position:absolute;top:10px;right:10px;z-index:5;display:flex;gap:6px}
-  .tabs button.on{border-color:var(--acc);color:var(--acc)}
-  button.on{border-color:var(--acc);color:var(--acc)}
-  #sheetList{display:flex;flex-direction:column;gap:4px;margin-top:8px}
-  #sheetList button{text-align:left;font-size:12px}
-  .sheetBox{margin:0 0 18px}
-  .sheetBox .cap{font:600 12px system-ui,sans-serif;color:#333;margin-bottom:4px}
-  .sheetBox svg{border:1px solid #888;background:#fff}
-  @media(max-width:800px){body{grid-template-columns:1fr;grid-template-rows:auto 60vh;height:auto}}
+  #view2d{display:none;overflow:auto;padding:70px 26px 26px}
+  #view3d canvas{display:block}
+
+  /* ---------- textes ---------- */
+  h1.h{font:800 28px/1.08 var(--display);letter-spacing:-.025em;margin:0 0 6px}
+  h2.h2{font:700 18px/1.2 var(--display);margin:26px 0 4px;letter-spacing:-.01em}
+  .lead{margin:0 0 16px;color:var(--ink2);font-weight:600}
+  .s{font-size:13px;color:var(--ink2);margin:6px 0}
+
+  /* ---------- boutons ---------- */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:700 14px var(--body);color:var(--ink);background:#fff;border:2px solid var(--ink);border-radius:999px;padding:9px 16px;cursor:pointer;box-shadow:var(--sh);transition:transform .08s,box-shadow .08s}
+  .btn:hover{background:var(--accent-soft)}
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .btn.on{background:var(--accent);color:#fff}
+  .btn.cta{background:var(--accent);color:#fff;font-size:16px;padding:12px 22px}
+  .btn.cta:hover{filter:brightness(1.06)}
+  .btn.wide{width:100%}
+  .btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+  .btn.sm{padding:6px 12px;font-size:13px}
+  .btn.ghost{box-shadow:none;border-color:transparent;background:none;padding:6px 8px}
+  .btn.ghost:hover{background:var(--accent-soft)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .back{margin:-6px 0 8px -8px}
+
+  /* ---------- gros choix de départ ---------- */
+  .choice{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;width:100%;text-align:left;font:inherit;color:var(--ink);background:var(--bg2,#fff);border:2px solid var(--ink);border-radius:26px;padding:18px;margin:0 0 16px;cursor:pointer;box-shadow:5px 5px 0 var(--ink);transition:transform .1s,box-shadow .1s}
+  .choice:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--ink)}
+  .choice:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
+  .choice .bub{width:62px;height:62px;border-radius:20px;border:2px solid var(--ink);background:var(--c);display:grid;place-items:center;color:#fff;transform:rotate(-6deg)}
+  .choice .bub svg{width:32px;height:32px}
+  .choice b{display:block;font:800 21px/1.1 var(--display);letter-spacing:-.02em}
+  .choice small{font-size:14px;font-weight:600;color:var(--ink2)}
+
+  /* ---------- pastilles de forme ---------- */
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:8px 0 6px}
+  .tiles.t3{grid-template-columns:repeat(3,1fr)}
+  .tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font:700 12.5px/1.15 var(--body);text-align:center;color:var(--ink);background:var(--ply);border:2px solid var(--ink);border-radius:12px;padding:12px 4px 9px;cursor:pointer;box-shadow:var(--sh);transition:transform .08s,box-shadow .08s,background .15s;min-height:82px}
+  .tile svg.ic{width:32px;height:32px;stroke-width:2.1;color:var(--ink)}
+  .tile:hover{background:#f3dcb7}
+  .tile:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .tile.on{background:var(--c,var(--accent));color:#fff;transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .tile.on svg.ic{color:#fff}
+  .tile .paper{display:block;background:#fff;border:2px solid var(--ink);border-radius:2px}
+  .tile.on .paper{border-color:#fff;background:transparent}
+
+  /* ---------- champs ---------- */
+  .fld{margin:14px 0}
+  .lab{display:flex;align-items:center;gap:6px;font:700 14.5px var(--body);margin-bottom:6px}
+  .ctl{display:flex;align-items:center;gap:12px}
+  .num{width:84px;font:700 15px var(--body);color:var(--ink);text-align:center;border:2px solid var(--ink);border-radius:10px;padding:7px 4px;background:#fff}
+  .num.sm{width:66px}
+  .u{font-size:13px;color:var(--ink2);margin-left:-6px}
+  select.sel{font:700 14.5px var(--body);color:var(--ink);border:2px solid var(--ink);border-radius:10px;padding:8px 10px;background:#fff;box-shadow:var(--sh);max-width:100%}
+  input[type=range]{flex:1;min-width:0;height:26px;background:none;-webkit-appearance:none;appearance:none;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:10px;border:2px solid var(--ink);border-radius:9px;background:#fff}
+  input[type=range]::-moz-range-track{height:6px;border:2px solid var(--ink);border-radius:9px;background:#fff}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:var(--accent);border:2px solid var(--ink);margin-top:-9px;box-shadow:2px 2px 0 var(--ink)}
+  input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--accent);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink)}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
+  .chip{font:700 14px var(--body);color:var(--ink);background:#fff;border:2px solid var(--ink);border-radius:999px;padding:5px 13px;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
+  .chip:hover{background:var(--accent-soft)}
+  .chip.on{background:var(--accent);color:#fff}
+  .sw{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;cursor:pointer;font-weight:700}
+  .sw small{display:block;font-weight:600;color:var(--ink2);font-size:12.5px}
+  .sw input{position:absolute;opacity:0}
+  .sw i{width:50px;height:28px;border-radius:99px;border:2px solid var(--ink);background:#fff;position:relative;flex:none;transition:background .15s}
+  .sw i::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--ink);transition:transform .15s}
+  .sw input:checked+i{background:var(--accent)}
+  .sw input:checked+i::after{transform:translateX(22px);background:#fff;box-shadow:0 0 0 2px var(--ink)}
+  .sw input:focus-visible+i{outline:3px solid var(--ink);outline-offset:2px}
+  .tip{position:relative;display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;border:2px solid var(--ink);font:800 11px var(--body);cursor:help;color:var(--ink);background:var(--lemon);flex:none}
+  .tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-30%);width:230px;padding:9px 11px;border-radius:12px;border:2px solid var(--ink);background:#fff;color:var(--ink);font:600 13px/1.35 var(--body);box-shadow:var(--sh);display:none;z-index:30;text-align:left}
+  .tip:hover::after,.tip:focus::after{display:block}
+  details.adv{margin:22px 0 4px;border:2px dashed var(--ink2);border-radius:16px;padding:0 14px}
+  details.adv[open]{border-style:solid;border-color:var(--ink)}
+  details.adv summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font:700 14.5px var(--body);padding:11px 0}
+  details.adv summary::-webkit-details-marker{display:none}
+  details.adv summary::after{content:"";margin-left:auto;width:8px;height:8px;border-right:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:rotate(45deg);transition:transform .15s}
+  details.adv[open] summary::after{transform:rotate(-135deg)}
+  details.adv .in{padding-bottom:8px}
+
+  /* ---------- dépôt de fichier ---------- */
+  .drop{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:26px 16px;border:3px dashed var(--ink);border-radius:24px;background:var(--accent-soft);cursor:pointer;transition:transform .1s,background .1s}
+  .drop:hover,.drop.over{background:var(--lemon);transform:scale(1.015)}
+  .drop svg{width:44px;height:44px;color:var(--ink)}
+  .drop b{font:800 19px var(--display)}
+  .drop span{color:var(--ink2);font-size:13.5px}
+  .chip-ok{display:flex;align-items:center;gap:10px;margin:14px 0 0;padding:10px 14px;border:2px solid var(--ink);border-radius:14px;background:var(--mint);color:#fff;font-weight:700;box-shadow:var(--sh)}
+  .chip-ok span{color:#fff}
+
+  /* ---------- messages ---------- */
+  #status{margin:14px 0 4px}
+  .note{display:flex;gap:10px;align-items:flex-start;border:2px solid var(--ink);border-radius:14px;padding:10px 12px;margin:9px 0;font-size:13.5px;line-height:1.4;background:#fff}
+  .note svg{margin-top:1px}
+  .note.warn{background:#fff0b8}
+  .note.bad{background:#ffd9d1}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+  .stat{border:2px solid var(--ink);border-radius:14px;background:var(--c,#fff);padding:8px 10px;box-shadow:var(--sh);text-align:center}
+  .stat b{display:block;font:800 28px/1 var(--display)}
+  .stat span{font-size:12.5px;font-weight:700}
+
+  /* ---------- planches ---------- */
+  .sheet{display:flex;align-items:center;gap:14px;border:2px solid var(--ink);border-radius:16px;padding:10px;margin:10px 0;background:#fff;box-shadow:var(--sh)}
+  .sheet .th{width:62px;height:82px;border:2px solid var(--ink);background:#fff;overflow:hidden;flex:none;border-radius:3px}
+  .sheet .th svg{width:100%;height:100%;display:block}
+  .sheet .th svg path{stroke-width:1.3px;vector-effect:non-scaling-stroke}
+  .sheet .th svg text{display:none}
+  .sheet .meta{flex:1;min-width:0}
+  .sheet .meta b{display:block;font:800 16px var(--display)}
+  .sheet .meta span{font-size:13px;color:var(--ink2)}
+  .how{display:flex;gap:10px;margin-top:16px;font-size:13.5px;color:var(--ink2)}
+
+  /* ---------- scène ---------- */
+  .seg{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:6;display:flex;gap:4px;padding:4px;background:#fff;border:2px solid var(--ink);border-radius:999px;box-shadow:var(--sh)}
+  .seg button{display:flex;align-items:center;gap:7px;font:700 14px var(--body);color:var(--ink);background:none;border:0;border-radius:999px;padding:7px 14px;cursor:pointer}
+  .seg button:hover{background:var(--accent-soft)}
+  .seg button.on{background:var(--ink);color:#fff}
+  .empty{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;padding:30px}
+  .empty svg.ring{width:min(300px,55vh);height:auto;animation:spin 60s linear infinite}
+  .empty h2{font:800 26px var(--display);margin:6px 0 4px;letter-spacing:-.02em}
+  .empty p{margin:0;color:var(--ink2);max-width:360px}
+  .hint3d{position:absolute;left:16px;bottom:14px;z-index:5;font-size:12.5px;color:var(--ink2);background:#fff;border:2px solid var(--ink);border-radius:999px;padding:4px 12px}
+  .sheetBox{margin:0 0 26px}
+  .sheetBox .cap{font:700 14px var(--display);margin-bottom:6px}
+  .sheetBox svg{background:#fff;border:2px solid var(--ink);box-shadow:5px 5px 0 var(--ink);max-width:100%;height:auto;display:block}
+  .sheetBox svg path{vector-effect:non-scaling-stroke;stroke-width:1.3px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---------- fenêtres ---------- */
+  .busy{position:fixed;inset:0;z-index:90;background:rgba(244,246,255,.75);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;font:800 20px var(--display)}
+  .busy.on{display:flex}
+  .spin{width:54px;height:54px;border-radius:50%;border:6px solid var(--ink);border-top-color:var(--tomato);animation:spin .8s linear infinite}
+  .modal{position:fixed;inset:0;z-index:80;background:rgba(27,35,64,.55);display:none;align-items:center;justify-content:center;padding:14px}
+  .modal.on{display:flex}
+  .modal .box{background:#fff;border:2px solid var(--ink);border-radius:24px;padding:20px;max-width:96vw;max-height:94vh;overflow:auto;box-shadow:8px 8px 0 var(--ink)}
+  #dCanvas{touch-action:none;width:min(84vw,400px);height:auto;background:#fff;border:2px solid var(--ink);border-radius:16px;cursor:crosshair;display:block;background:radial-gradient(#d6dcf7 1.2px,transparent 1.3px) 0 0/20px 20px,#fff}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,30px);opacity:0;z-index:100;background:var(--ink);color:#fff;border-radius:999px;padding:11px 20px;font-weight:700;pointer-events:none;transition:.3s}
+  .toast.on{transform:translate(-50%,0);opacity:1}
+  .confetti{position:fixed;top:-12px;width:10px;height:14px;z-index:120;pointer-events:none;border:2px solid var(--ink);animation:fall 1.7s cubic-bezier(.3,.6,.6,1) forwards}
+  @keyframes fall{to{transform:translate(var(--dx),105vh) rotate(var(--r))}}
+  .guide{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:16px 0}
+  .guide .bub{width:40px;height:40px;border-radius:12px;border:2px solid var(--ink);background:var(--c);display:grid;place-items:center;color:#fff}
+
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  @media(max-width:900px){
+    body{overflow:auto;display:block;height:auto}
+    .app{grid-template-columns:1fr}
+    .stage{order:-1;height:48vh}
+    .panel{border-right:0}
+    .step small,.brand small{display:none}.step b{font-size:13px}.link{width:12px}
+    .top{gap:10px;padding:8px 12px}.help .t{display:none}
+    .tiles{grid-template-columns:repeat(4,1fr)}
+  }
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
@@ -41,136 +220,307 @@
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js"></script>
 </head>
-<body>
-<aside>
-  <h1>Maquette en tranches</h1>
-  <p class="s">STL / 3MF → pièces SVG pour découpe laser (tranches + ergots + plateau à fentes). Unités : mm.</p>
+<body data-step="1">
 
-  <h2>0. Créer un tore (optionnel)</h2>
-  <p class="s">Génère un modèle : une forme balayée le long d'un tore, inscrite entre les diamètres donnés.</p>
-  <label>Forme
-    <select id="gShape">
-      <option value="star" selected>Étoile</option>
-      <option value="circle">Rond</option>
-      <option value="square">Carré</option>
-      <option value="triangle">Triangle</option>
-      <option value="polygon">Polygone (n côtés)</option>
-      <option value="flower">Fleur (n pétales)</option>
-      <option value="heart">Cœur</option>
-      <option value="draw">Dessin libre (à la main)</option>
-    </select></label>
-  <div id="gDrawRow" class="row" style="display:none;align-items:center">
-    <button id="gDraw">Dessiner à la main…</button>
-    <canvas id="gPrev" width="64" height="64" style="border:1px solid var(--line);border-radius:6px;background:#111317"></canvas>
-  </div>
-  <label>Ø extérieur (mm) <input type="number" id="gDo" value="300" min="20" step="1"></label>
-  <label>Ø intérieur (mm) <input type="number" id="gDi" value="200" min="1" step="1"></label>
-  <label id="gNRow">Nombre de pointes / côtés <input type="number" id="gN" value="5" min="3" max="24" step="1"></label>
-  <label id="gLRow">Longueur des pointes (%) <input type="number" id="gL" value="55" min="5" max="95" step="1"></label>
-  <label id="gRRow">Arrondi des angles (%) <input type="number" id="gR" value="35" min="0" max="100" step="5"></label>
-  <label>Twist le long du tore <select id="gTw"></select></label>
-  <p class="s">Seuls les angles qui referment le tore sont proposés : multiples de 360° / symétrie de la forme (jusqu'à 720°).</p>
-  <label>Taille max le long du tore (%) <input type="number" id="gS" value="100" min="10" max="400" step="5"></label>
-  <label>Cycles de variation <input type="number" id="gCyc" value="1" min="1" max="12" step="1"></label>
-  <p class="s">100 % = taille constante. Avec 200 %, la section part à 100 %, atteint 200 % à mi-tour puis revient à 100 % (variation progressive). Si tu mets 50 %, la section rétrécit.</p>
-  <label>Enfoncement dans la plaque (mm) <input type="number" id="gSink" value="0" min="0" step="0.5"></label>
-  <p class="s">L'enfoncement coupe le bas de la forme : on obtient un méplat plat pour les ergots au lieu d'une pointe.</p>
-  <div class="row">
-    <button class="p" id="gMake">Créer le modèle</button>
-    <button id="gStl">Télécharger STL</button>
-  </div>
+<!-- icônes -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 2.5 3.5 7v10L12 21.5 20.5 17V7L12 2.5Z"/><path d="M3.5 7 12 11.5 20.5 7M12 11.5v10"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><path d="m4 20 10.5-10.5"/><path d="m13 5.5 5.5 5.5"/><path d="M18 2.5v3M16.5 4h3M6 3v2.4M4.8 4.2h2.4M20.5 14v2.4M19.3 15.2h2.4"/></symbol>
+  <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6.5" r="2.6"/><circle cx="6" cy="17.5" r="2.6"/><path d="m8 8.2 12 9.8M8 15.8 20 6"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></symbol>
+  <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></symbol>
+  <symbol id="i-square" viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/></symbol>
+  <symbol id="i-triangle" viewBox="0 0 24 24"><path d="M12 4.5 20 19H4L12 4.5Z"/></symbol>
+  <symbol id="i-polygon" viewBox="0 0 24 24"><path d="M12 3.5 19.4 7.75v8.5L12 20.5 4.6 16.25v-8.5L12 3.5Z"/></symbol>
+  <symbol id="i-flower" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="6.4" r="3"/><circle cx="17.3" cy="10.3" r="3"/><circle cx="15.3" cy="16.5" r="3"/><circle cx="8.7" cy="16.5" r="3"/><circle cx="6.7" cy="10.3" r="3"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20Z"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></symbol>
+  <symbol id="i-cut-x" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M8 5v14M12 5v14M16 5v14"/></symbol>
+  <symbol id="i-cut-y" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M5 8h14M5 12h14M5 16h14"/></symbol>
+  <symbol id="i-cut-r" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 12V3.5M12 12l7.4-4.25M12 12l7.4 4.25M12 12v8.5M12 12l-7.4 4.25M12 12 4.6 7.75"/></symbol>
+  <symbol id="i-flat" viewBox="0 0 24 24"><rect x="6" y="9" width="12" height="7" rx="1.5"/><path d="M3 20h18"/></symbol>
+  <symbol id="i-pick" viewBox="0 0 24 24"><path d="m6 3 12 8.2-5.2 1.3L10.4 18 6 3Z"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4.5V11h-6.5"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 4 8.5 4.5L12 13 3.5 8.5 12 4Z"/><path d="m3.5 12.5 8.5 4.5 8.5-4.5M3.5 16.5 12 21l8.5-4.5"/></symbol>
+  <symbol id="i-sheet" viewBox="0 0 24 24"><path d="M6 3.5h8l4 4v13H6v-17Z"/><path d="M14 3.5v4h4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4 21 19.5H3L12 4Z"/><path d="M12 10v4.5M12 17.2v.1"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.7v.1"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17"/></symbol>
+  <symbol id="i-wood" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></symbol>
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 1 1 3.6 2.4c-.7.4-1.1.9-1.1 1.8M12 16.8v.1"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 4 3.5 7.5 7 11M3.5 7.5h13M17 13l3.5 3.5L17 20M20.5 16.5h-13"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M4 8h16v11H4V8Z"/><path d="M3 4.5h18V8H3V4.5ZM10 12h4"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7Z"/></symbol>
+</svg>
 
-  <h2>1. Modèle</h2>
-  <input type="file" id="file" accept=".stl,.3mf">
-  <div class="row"><button id="demo">Exemple</button></div>
-  <div class="row">
-    <button data-rot="x">Tourner X 90°</button>
-    <button data-rot="y">Tourner Y 90°</button>
-    <button data-rot="z">Tourner Z 90°</button>
-  </div>
-  <div class="row">
-    <button id="flatAuto">Poser à plat (auto)</button>
-    <button id="flatPick">Choisir une face…</button>
-  </div>
-  <div class="row" style="align-items:center">
-    <span class="s" style="margin:0">Rotation libre (°)</span>
-    <input type="number" id="rx" value="0" step="1" title="autour de X" style="width:58px">
-    <input type="number" id="ry" value="0" step="1" title="autour de Y" style="width:58px">
-    <input type="number" id="rz" value="0" step="1" title="autour de Z" style="width:58px">
-    <button id="rotApply">Appliquer</button>
-  </div>
-  <p class="s" id="flatHint">Le modèle doit reposer à plat (le bas touche le plateau). « Poser à plat » cherche la plus grande face plane ; « Choisir une face » te laisse cliquer la face à poser sur le sol.</p>
-  <label>Échelle (%) <input type="number" id="scale" value="100" min="1" step="1"></label>
+<header class="top">
+  <div class="brand"><span id="logo"></span><div><b>Sliceo</b><small>Tes formes 3D, en bois découpé</small></div></div>
+  <nav class="steps" aria-label="Étapes">
+    <button class="step on" data-step="1"><span class="bub"><span class="n">1</span><svg class="ic ck"><use href="#i-check"/></svg></span><span><b>Modèle</b><small>Importer ou créer</small></span></button>
+    <i class="link"></i>
+    <button class="step" data-step="2"><span class="bub"><span class="n">2</span><svg class="ic ck"><use href="#i-check"/></svg></span><span><b>Découpe</b><small>Tranches et ergots</small></span></button>
+    <i class="link"></i>
+    <button class="step" data-step="3"><span class="bub"><span class="n">3</span><svg class="ic ck"><use href="#i-check"/></svg></span><span><b>Export</b><small>Fichiers pour le laser</small></span></button>
+  </nav>
+  <button class="btn sm help" id="helpBtn"><svg class="ic"><use href="#i-help"/></svg><span class="t">Comment ça marche</span></button>
+</header>
+<div class="edge" aria-hidden="true"></div>
 
-  <h2>2. Coupe</h2>
-  <label>Axe de coupe
-    <select id="axis"><option value="0">X</option><option value="1">Y</option><option value="R">Rayonnant (axe Z)</option></select></label>
-  <label>Centre de rotation X (mm) <input type="number" id="cx" value="0" step="0.5"></label>
-  <label>Centre de rotation Y (mm) <input type="number" id="cy" value="0" step="0.5"></label>
-  <p class="s">Mode rayonnant : les pièces sont des demi-plans autour de l'axe vertical Z (tore, vase…). Le centre (0, 0) est le milieu du modèle ; les champs X/Y ne servent qu'en mode rayonnant.</p>
-  <label>Épaisseur du bois (mm) <input type="number" id="t" value="3" min="0.5" step="0.1"></label>
-  <label>Nombre de pièces <input type="number" id="n" value="12" min="1" step="1"></label>
+<div class="app">
+  <aside class="panel">
+    <div class="panes">
 
-  <h2>3. Plateau &amp; ergots</h2>
-  <label>Épaisseur du plateau (mm) <input type="number" id="pt" value="3" min="0.5" step="0.1"></label>
-  <label>Largeur d'ergot (mm) <input type="number" id="tw" value="8" min="2" step="0.5"></label>
-  <label>Hauteur de scan (mm) <input type="number" id="off" value="1.5" min="0.1" step="0.1"></label>
-  <label>Jeu des fentes (mm) <input type="number" id="clr" value="0.1" min="0" step="0.05"></label>
-  <label>Marge du plateau (mm) <input type="number" id="mar" value="10" min="0" step="1"></label>
+      <!-- ===== ÉTAPE 1 ===== -->
+      <section class="pane on" data-step="1" id="pane1">
+        <div id="modeChoice">
+          <h1 class="h">Par quoi on commence ?</h1>
+          <p class="lead">Ton objet sera découpé en tranches de bois. Il nous faut d'abord sa forme.</p>
+          <button class="choice" id="chImport" style="--c:var(--sky);--bg2:#e6efff">
+            <span class="bub"><svg class="ic"><use href="#i-upload"/></svg></span>
+            <span><b>J'ai déjà un modèle 3D</b><small>Importe un fichier STL ou 3MF</small></span>
+            <svg class="ic"><use href="#i-chev-r"/></svg>
+          </button>
+          <button class="choice" id="chCreate" style="--c:var(--pink);--bg2:#ffe6f3">
+            <span class="bub"><svg class="ic"><use href="#i-wand"/></svg></span>
+            <span><b>Je crée ma forme</b><small>Étoile, cœur, fleur ou ton propre dessin</small></span>
+            <svg class="ic"><use href="#i-chev-r"/></svg>
+          </button>
+        </div>
 
-  <h2>4. Export (planches laser)</h2>
-  <label>Format du support
-    <select id="sheetFmt">
-      <option value="105x148">A6 (105 × 148)</option>
-      <option value="148x210">A5 (148 × 210)</option>
-      <option value="210x297" selected>A4 (210 × 297)</option>
-      <option value="297x420">A3 (297 × 420)</option>
-      <option value="420x594">A2 (420 × 594)</option>
-      <option value="300x200">30 × 20 cm</option>
-      <option value="600x400">60 × 40 cm</option>
-      <option value="custom">Personnalisé</option>
-    </select></label>
-  <label>Largeur du support (mm) <input type="number" id="sheetW" value="210" min="20" step="1"></label>
-  <label>Hauteur du support (mm) <input type="number" id="sheetH" value="297" min="20" step="1"></label>
-  <div class="row"><button id="sheetSwap">Inverser largeur / hauteur</button></div>
-  <label>Marge du support (mm) <input type="number" id="shMar" value="3" min="0" step="0.5"></label>
-  <label>Espacement entre pièces (mm) <input type="number" id="shGap" value="2" min="0" step="0.5"></label>
-  <label>Rotation 90° autorisée <input type="checkbox" id="shRot" checked></label>
-  <label>Numéros sur les ergots <input type="checkbox" id="lbl" checked></label>
-  <label>Numéros sur le plateau <input type="checkbox" id="lblPlate" checked></label>
-  <div class="row"><button class="p" id="gen">Générer</button><button id="dlZip">Tout télécharger (ZIP)</button></div>
-  <div id="sheetList"></div>
-  <div id="info"></div>
-  <div id="warn"></div>
-</aside>
+        <div id="importPanel" hidden>
+          <button class="btn ghost back" data-back><svg class="ic"><use href="#i-chev-l"/></svg>Changer de méthode</button>
+          <h1 class="h">Importe ton modèle</h1>
+          <p class="lead">Dépose ton fichier ci-dessous, ou essaie avec un exemple.</p>
+          <label class="drop" id="drop" for="file">
+            <svg class="ic"><use href="#i-upload"/></svg>
+            <b>Dépose ton fichier ici</b>
+            <span>ou clique pour le choisir (STL ou 3MF)</span>
+          </label>
+          <input type="file" id="file" accept=".stl,.3mf" class="sr">
+          <div class="row" style="margin-top:12px"><button class="btn sm" id="demo"><svg class="ic"><use href="#i-sparkle"/></svg>Essayer un exemple</button></div>
 
-<div id="drawModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;align-items:center;justify-content:center">
-  <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;max-width:96vw">
-    <div style="margin-bottom:8px;font-weight:600">Dessine une forme fermée</div>
-    <canvas id="dCanvas" width="400" height="400" style="touch-action:none;width:min(86vw,400px);height:auto;background:#111317;border-radius:6px;cursor:crosshair;display:block"></canvas>
-    <p class="s" style="max-width:400px;margin-top:8px">Un seul trait continu : la forme se ferme toute seule. Le cercle pointillé représente la section du tore ; le point le plus éloigné du centre est ajusté dessus. Le dessin est recentré, et le twist ne peut valoir que 0°, 360° ou 720°.</p>
-    <p id="dMsg" class="s" style="color:#ff8f7a;margin:0 0 6px"></p>
-    <div class="row"><button id="dClear">Effacer</button><button id="dCancel">Annuler</button><button class="p" id="dOk">Valider</button></div>
+          <h2 class="h2">Pose-le bien à plat</h2>
+          <p class="s" id="flatHint">Le dessous du modèle doit reposer sur le sol. « Poser à plat » trouve la plus grande face plane tout seul. Sinon, clique la face de ton choix.</p>
+          <div class="grid2">
+            <button class="btn" id="flatAuto"><svg class="ic"><use href="#i-flat"/></svg>Poser à plat</button>
+            <button class="btn" id="flatPick"><svg class="ic"><use href="#i-pick"/></svg>Choisir une face</button>
+          </div>
+          <div class="grid3" style="margin-top:10px">
+            <button class="btn sm" data-rot="x"><svg class="ic"><use href="#i-rotate"/></svg>Tour X</button>
+            <button class="btn sm" data-rot="y"><svg class="ic"><use href="#i-rotate"/></svg>Tour Y</button>
+            <button class="btn sm" data-rot="z"><svg class="ic"><use href="#i-rotate"/></svg>Tour Z</button>
+          </div>
+          <details class="adv"><summary><svg class="ic"><use href="#i-settings"/></svg>Rotation précise</summary><div class="in">
+            <p class="s">Angle en degrés autour de chaque axe.</p>
+            <div class="ctl">
+              <input class="num sm" type="number" id="rx" value="0" step="1" aria-label="Angle autour de X">
+              <input class="num sm" type="number" id="ry" value="0" step="1" aria-label="Angle autour de Y">
+              <input class="num sm" type="number" id="rz" value="0" step="1" aria-label="Angle autour de Z">
+              <button class="btn sm" id="rotApply">Appliquer</button>
+            </div></div></details>
+          <div class="fld"><div class="lab">Taille du modèle</div>
+            <div class="ctl"><input type="range" data-pair="scale" min="10" max="300" step="1"><input class="num" type="number" id="scale" value="100" min="1" step="1"><span class="u">%</span></div></div>
+        </div>
+
+        <div id="createPanel" hidden>
+          <button class="btn ghost back" data-back><svg class="ic"><use href="#i-chev-l"/></svg>Changer de méthode</button>
+          <h1 class="h">Crée ta forme</h1>
+          <p class="lead">Ta forme fait le tour d'un anneau. Tout se met à jour en direct.</p>
+          <div class="tiles" id="shapeTiles">
+            <button class="tile" data-sel="gShape" data-val="star" style="--c:#f5a800"><svg class="ic"><use href="#i-star"/></svg>Étoile</button>
+            <button class="tile" data-sel="gShape" data-val="circle" style="--c:var(--sky)"><svg class="ic"><use href="#i-circle"/></svg>Rond</button>
+            <button class="tile" data-sel="gShape" data-val="square" style="--c:var(--grape)"><svg class="ic"><use href="#i-square"/></svg>Carré</button>
+            <button class="tile" data-sel="gShape" data-val="triangle" style="--c:var(--tomato)"><svg class="ic"><use href="#i-triangle"/></svg>Triangle</button>
+            <button class="tile" data-sel="gShape" data-val="polygon" style="--c:var(--mint)"><svg class="ic"><use href="#i-polygon"/></svg>Polygone</button>
+            <button class="tile" data-sel="gShape" data-val="flower" style="--c:var(--pink)"><svg class="ic"><use href="#i-flower"/></svg>Fleur</button>
+            <button class="tile" data-sel="gShape" data-val="heart" style="--c:#e8344f"><svg class="ic"><use href="#i-heart"/></svg>Cœur</button>
+            <button class="tile" data-sel="gShape" data-val="draw" style="--c:var(--ink)"><svg class="ic"><use href="#i-pencil"/></svg>À la main</button>
+          </div>
+          <select id="gShape" hidden>
+            <option value="star" selected>Étoile</option><option value="circle">Rond</option><option value="square">Carré</option><option value="triangle">Triangle</option>
+            <option value="polygon">Polygone</option><option value="flower">Fleur</option><option value="heart">Cœur</option><option value="draw">Dessin libre</option>
+          </select>
+          <div id="gDrawRow" class="row" hidden style="margin:8px 0">
+            <button class="btn sm" id="gDraw"><svg class="ic"><use href="#i-pencil"/></svg>Dessiner ma forme</button>
+            <canvas id="gPrev" width="64" height="64" style="border:2px solid var(--ink);border-radius:12px;background:#fff"></canvas>
+          </div>
+
+          <h2 class="h2">Taille de l'anneau</h2>
+          <div class="fld"><div class="lab">Diamètre extérieur <span class="tip" tabindex="0" data-tip="Largeur totale de l'anneau, d'un bord extérieur à l'autre.">?</span></div>
+            <div class="ctl"><input type="range" data-pair="gDo" min="60" max="800" step="1"><input class="num" type="number" id="gDo" value="300" min="20" step="1"><span class="u">mm</span></div></div>
+          <div class="fld"><div class="lab">Diamètre intérieur <span class="tip" tabindex="0" data-tip="Diamètre du trou au milieu de l'anneau. L'épaisseur de la forme vaut la moitié de l'écart avec le diamètre extérieur.">?</span></div>
+            <div class="ctl"><input type="range" data-pair="gDi" min="10" max="700" step="1"><input class="num" type="number" id="gDi" value="200" min="1" step="1"><span class="u">mm</span></div></div>
+
+          <div id="gNRow" class="fld"><div class="lab"><span id="gNLab">Nombre de pointes</span></div>
+            <div class="ctl"><input type="range" data-pair="gN" min="3" max="24" step="1"><input class="num" type="number" id="gN" value="5" min="3" max="24" step="1"></div></div>
+          <div id="gLRow" class="fld"><div class="lab">Longueur des pointes <span class="tip" tabindex="0" data-tip="0 % donne un rond, plus la valeur est grande plus les pointes sont longues et fines.">?</span></div>
+            <div class="ctl"><input type="range" data-pair="gL" min="5" max="95" step="1"><input class="num" type="number" id="gL" value="55" min="5" max="95" step="1"><span class="u">%</span></div></div>
+          <div id="gRRow" class="fld"><div class="lab">Angles arrondis</div>
+            <div class="ctl"><input type="range" data-pair="gR" min="0" max="100" step="5"><input class="num" type="number" id="gR" value="35" min="0" max="100" step="5"><span class="u">%</span></div></div>
+
+          <h2 class="h2">Effets spéciaux</h2>
+          <div class="fld"><div class="lab">Torsion <span class="tip" tabindex="0" data-tip="Fait tourner la forme sur elle-même le long de l'anneau. Seuls les angles qui bouclent proprement sont proposés.">?</span></div>
+            <select class="sel" id="gTw"></select></div>
+          <div class="fld"><div class="lab">Taille maximale <span class="tip" tabindex="0" data-tip="La forme grossit puis rétrécit en douceur le long de l'anneau. 100 % = aucune variation. Avec 200 %, elle double de taille au point le plus grand.">?</span></div>
+            <div class="ctl"><input type="range" data-pair="gS" min="20" max="400" step="5"><input class="num" type="number" id="gS" value="100" min="10" max="400" step="5"><span class="u">%</span></div></div>
+          <div class="fld"><div class="lab">Répétitions par tour <span class="tip" tabindex="0" data-tip="Combien de fois la forme grossit puis rétrécit pendant un tour complet.">?</span></div>
+            <div class="ctl"><input type="range" data-pair="gCyc" min="1" max="12" step="1"><input class="num" type="number" id="gCyc" value="1" min="1" max="12" step="1"></div></div>
+          <div class="fld"><div class="lab">Dessous plat <span class="tip" tabindex="0" data-tip="Coupe le bas de la forme pour obtenir un pied bien plat, sur lequel les ergots tiendront. Sans cela, une pointe d'étoile toucherait à peine la plaque.">?</span></div>
+            <div class="ctl"><input type="range" data-pair="gSink" min="0" max="25" step="0.5"><input class="num" type="number" id="gSink" value="0" min="0" step="0.5"><span class="u">mm</span></div></div>
+          <div class="row" style="margin-top:18px"><button class="btn sm" id="gStl"><svg class="ic"><use href="#i-download"/></svg>Télécharger le STL</button></div>
+        </div>
+
+        <div id="modelChip" class="chip-ok" hidden><svg class="ic"><use href="#i-check"/></svg><span id="modelChipTxt"></span></div>
+      </section>
+
+      <!-- ===== ÉTAPE 2 ===== -->
+      <section class="pane" data-step="2" id="pane2">
+        <h1 class="h">Comment découper ?</h1>
+        <p class="lead">Le modèle est coupé en tranches fines. Chaque tranche tient debout grâce à des ergots qui s'enfoncent dans la plaque de base.</p>
+        <div class="tiles t3">
+          <button class="tile" data-sel="axis" data-val="R" style="--c:var(--tomato)"><svg class="ic"><use href="#i-cut-r"/></svg>Autour du centre</button>
+          <button class="tile" data-sel="axis" data-val="0" style="--c:var(--tomato)"><svg class="ic"><use href="#i-cut-x"/></svg>Tranches sens X</button>
+          <button class="tile" data-sel="axis" data-val="1" style="--c:var(--tomato)"><svg class="ic"><use href="#i-cut-y"/></svg>Tranches sens Y</button>
+        </div>
+        <select id="axis" hidden><option value="R">Autour du centre</option><option value="0">Sens X</option><option value="1">Sens Y</option></select>
+        <p class="s" id="axisHelp"></p>
+
+        <div class="fld"><div class="lab">Épaisseur de ton bois <span class="tip" tabindex="0" data-tip="Mesure ton contreplaqué avec un pied à coulisse : les fentes de la plaque sont calculées sur cette valeur.">?</span></div>
+          <div class="chips" id="woodChips">
+            <button class="chip" data-for="t" data-val="2">2 mm</button><button class="chip" data-for="t" data-val="3">3 mm</button><button class="chip" data-for="t" data-val="4">4 mm</button><button class="chip" data-for="t" data-val="5">5 mm</button><button class="chip" data-for="t" data-val="6">6 mm</button>
+          </div>
+          <div class="ctl"><input class="num" type="number" id="t" value="3" min="0.5" step="0.1"><span class="u">mm, ou une autre valeur</span></div></div>
+        <div class="fld"><div class="lab">Nombre de pièces</div>
+          <div class="ctl"><input type="range" data-pair="n" min="2" max="150" step="1"><input class="num" type="number" id="n" value="12" min="1" step="1"></div></div>
+        <div class="fld"><div class="lab">Épaisseur de la plaque de base</div>
+          <div class="ctl"><input type="range" data-pair="pt" min="1" max="12" step="0.5"><input class="num" type="number" id="pt" value="3" min="0.5" step="0.1"><span class="u">mm</span></div></div>
+
+        <details class="adv"><summary><svg class="ic"><use href="#i-settings"/></svg>Réglages avancés</summary><div class="in">
+          <div class="fld"><div class="lab">Largeur des ergots <span class="tip" tabindex="0" data-tip="Un ergot est un petit tenon sous chaque pièce. Il entre dans une fente de la plaque pour tenir la pièce debout.">?</span></div>
+            <div class="ctl"><input class="num" type="number" id="tw" value="8" min="2" step="0.5"><span class="u">mm</span></div></div>
+          <div class="fld"><div class="lab">Hauteur de détection du pied <span class="tip" tabindex="0" data-tip="Hauteur, depuis le dessous, où l'outil cherche une zone plate pour placer les ergots.">?</span></div>
+            <div class="ctl"><input class="num" type="number" id="off" value="1.5" min="0.1" step="0.1"><span class="u">mm</span></div></div>
+          <div class="fld"><div class="lab">Jeu d'assemblage <span class="tip" tabindex="0" data-tip="Petit espace ajouté dans chaque fente pour que les pièces rentrent sans forcer. 0,1 mm convient souvent.">?</span></div>
+            <div class="ctl"><input class="num" type="number" id="clr" value="0.1" min="0" step="0.05"><span class="u">mm</span></div></div>
+          <div class="fld"><div class="lab">Bord de la plaque</div>
+            <div class="ctl"><input class="num" type="number" id="mar" value="10" min="0" step="1"><span class="u">mm</span></div></div>
+          <div id="centerRow">
+            <div class="fld"><div class="lab">Centre de rotation <span class="tip" tabindex="0" data-tip="Point autour duquel les pièces sont réparties. (0 ; 0) correspond au milieu du modèle.">?</span></div>
+              <div class="ctl"><input class="num" type="number" id="cx" value="0" step="0.5" aria-label="Centre X"><input class="num" type="number" id="cy" value="0" step="0.5" aria-label="Centre Y"><span class="u">mm</span></div></div>
+          </div>
+        </div></details>
+
+        <div class="stats" id="stats2" hidden>
+          <div class="stat" style="--c:var(--lemon)"><b id="stPieces">0</b><span>pièces</span></div>
+          <div class="stat" style="--c:#ffd9d1"><b id="stSlots">0</b><span>fentes</span></div>
+          <div class="stat" style="--c:#d6f6ed"><b id="stPlate">0</b><span>plateau, mm</span></div>
+        </div>
+        <button class="btn cta wide" id="gen" style="margin-top:16px"><svg class="ic"><use href="#i-scissors"/></svg><span id="genTxt">Calculer la découpe</span></button>
+      </section>
+
+      <!-- ===== ÉTAPE 3 ===== -->
+      <section class="pane" data-step="3" id="pane3">
+        <h1 class="h">Prépare tes planches</h1>
+        <p class="lead">Choisis le format de ta planche de bois. Les pièces sont rangées au mieux, avec un fichier par planche : il suffit de les lancer l'un après l'autre.</p>
+        <div class="tiles">
+          <button class="tile" data-sel="sheetFmt" data-val="105x148"><span class="paper" style="width:20px;height:28px"></span>A6</button>
+          <button class="tile" data-sel="sheetFmt" data-val="148x210"><span class="paper" style="width:25px;height:35px"></span>A5</button>
+          <button class="tile" data-sel="sheetFmt" data-val="210x297"><span class="paper" style="width:29px;height:41px"></span>A4</button>
+          <button class="tile" data-sel="sheetFmt" data-val="297x420"><span class="paper" style="width:33px;height:46px"></span>A3</button>
+          <button class="tile" data-sel="sheetFmt" data-val="420x594"><span class="paper" style="width:37px;height:52px"></span>A2</button>
+          <button class="tile" data-sel="sheetFmt" data-val="300x200"><span class="paper" style="width:48px;height:32px"></span>30 × 20 cm</button>
+          <button class="tile" data-sel="sheetFmt" data-val="600x400"><span class="paper" style="width:57px;height:38px"></span>60 × 40 cm</button>
+          <button class="tile" data-sel="sheetFmt" data-val="custom"><svg class="ic"><use href="#i-pencil"/></svg>Sur mesure</button>
+        </div>
+        <select id="sheetFmt" hidden>
+          <option value="105x148">A6</option><option value="148x210">A5</option><option value="210x297" selected>A4</option><option value="297x420">A3</option><option value="420x594">A2</option>
+          <option value="300x200">30 × 20 cm</option><option value="600x400">60 × 40 cm</option><option value="custom">Sur mesure</option>
+        </select>
+        <div class="fld"><div class="lab">Dimensions de ta planche</div>
+          <div class="ctl"><input class="num" type="number" id="sheetW" value="210" min="20" step="1" aria-label="Largeur"><span class="u">×</span><input class="num" type="number" id="sheetH" value="297" min="20" step="1" aria-label="Hauteur"><span class="u">mm</span>
+          <button class="btn sm" id="sheetSwap" title="Inverser largeur et hauteur"><svg class="ic"><use href="#i-swap"/></svg></button></div></div>
+
+        <label class="sw"><span>Autoriser la rotation des pièces<small>Plus de pièces par planche. À éviter si le sens du fil compte.</small></span><input type="checkbox" id="shRot" checked><i></i></label>
+        <label class="sw"><span>Numéroter les pièces<small>Gravé sur l'ergot : invisible une fois collé.</small></span><input type="checkbox" id="lbl" checked><i></i></label>
+        <label class="sw"><span>Numéroter la plaque<small>Gravé près de chaque fente, pour savoir où poser quoi.</small></span><input type="checkbox" id="lblPlate" checked><i></i></label>
+        <details class="adv"><summary><svg class="ic"><use href="#i-settings"/></svg>Réglages avancés</summary><div class="in">
+          <div class="fld"><div class="lab">Marge au bord de la planche</div><div class="ctl"><input class="num" type="number" id="shMar" value="3" min="0" step="0.5"><span class="u">mm</span></div></div>
+          <div class="fld"><div class="lab">Espace entre les pièces</div><div class="ctl"><input class="num" type="number" id="shGap" value="2" min="0" step="0.5"><span class="u">mm</span></div></div>
+        </div></details>
+
+        <h2 class="h2">Tes fichiers</h2>
+        <div id="sheetCards"></div>
+        <button class="btn cta wide" id="dlZip" style="margin-top:12px"><svg class="ic"><use href="#i-box"/></svg>Tout télécharger (ZIP)</button>
+        <div class="how"><svg class="ic"><use href="#i-info"/></svg><span>Ouvre chaque fichier SVG dans le logiciel de ta découpeuse. Le trait rouge se découpe, le bleu se grave.</span></div>
+      </section>
+
+      <div id="status"><div id="info"></div><div id="warn"></div></div>
+    </div>
+    <div class="foot">
+      <button class="btn" id="prev" style="visibility:hidden"><svg class="ic"><use href="#i-chev-l"/></svg>Retour</button>
+      <button class="btn cta" id="next" style="margin-left:auto" disabled>Continuer<svg class="ic"><use href="#i-chev-r"/></svg></button>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="seg" role="tablist">
+      <button id="tab3d" class="on"><svg class="ic"><use href="#i-cube"/></svg>Vue 3D</button>
+      <button id="tabReal"><svg class="ic"><use href="#i-wood"/></svg>Rendu bois</button>
+      <button id="tab2d"><svg class="ic"><use href="#i-grid"/></svg>Planches</button>
+    </div>
+    <div id="view3d"></div>
+    <div id="view2d"></div>
+    <div class="hint3d" id="hint3d" hidden>Glisse pour tourner, molette pour zoomer</div>
+    <div class="empty" id="empty">
+      <div id="heroRing"></div>
+      <h2>Ici apparaîtra ta création</h2>
+      <p>Choisis ton point de départ dans le panneau de gauche.</p>
+    </div>
+  </main>
+</div>
+
+<!-- dessin à la main -->
+<div id="drawModal" class="modal">
+  <div class="box">
+    <h1 class="h" style="font-size:22px">Dessine ta forme</h1>
+    <p class="s" style="max-width:400px">Trace-la d'un seul geste, sans lever le doigt : elle se ferme toute seule. Le cercle pointillé marque la taille de la section du tore.</p>
+    <canvas id="dCanvas" width="400" height="400"></canvas>
+    <p id="dMsg" class="s" style="color:#c2260c;margin:8px 0 0;min-height:20px"></p>
+    <div class="row" style="margin-top:6px"><button class="btn sm" id="dClear">Effacer</button><button class="btn sm" id="dCancel">Annuler</button><button class="btn cta" id="dOk" style="margin-left:auto">Valider</button></div>
   </div>
 </div>
 
-<main>
-  <div class="tabs">
-    <button id="tab3d" class="on">3D</button>
-    <button id="tab2d">Planche 2D</button>
-    <button id="tabReal">Mode réel</button>
+<!-- aide -->
+<div id="helpModal" class="modal">
+  <div class="box" style="max-width:460px">
+    <h1 class="h">Comment ça marche</h1>
+    <p class="lead">Un objet 3D devient un kit de pièces en bois, découpées au laser puis assemblées.</p>
+    <div class="guide">
+      <span class="bub" style="--c:var(--sky)"><svg class="ic"><use href="#i-cube"/></svg></span><span><b>Modèle.</b> Importe un fichier 3D ou crée une forme sur un anneau.</span>
+      <span class="bub" style="--c:var(--tomato)"><svg class="ic"><use href="#i-scissors"/></svg></span><span><b>Découpe.</b> L'objet est tranché. Chaque tranche reçoit des ergots qui s'enfoncent dans une plaque de base fendue.</span>
+      <span class="bub" style="--c:var(--mint)"><svg class="ic"><use href="#i-download"/></svg></span><span><b>Export.</b> Les pièces sont rangées sur des planches de la taille de ton bois, un fichier SVG par planche.</span>
+    </div>
+    <div class="row"><button class="btn cta" id="helpOk" style="margin-left:auto">C'est parti</button></div>
   </div>
-  <div id="view3d"></div>
-  <div id="view2d"></div>
-</main>
+</div>
+
+<div class="busy" id="busy"><div class="spin"></div><span id="busyTxt">Un instant…</span></div>
+<div class="toast" id="toast"></div>
 
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 
 const $ = id => document.getElementById(id);
+const $$=s=>[...document.querySelectorAll(s)];
 let baseV = null, F = null, baseName = 'maquette';
-let result = null;
+let result = null,calc=null,stale=false,genShown=false;
 
 /* ---------------- Import ---------------- */
 function weld(pos){
@@ -337,7 +687,7 @@ function working(){
 function setMesh(pos,name){
   const w=weld(pos);
   if(!w.F.length) throw new Error('Aucun triangle valide trouvé');
-  baseV=w.V;F=w.F;baseName=name;result=null;
+  baseV=w.V;F=w.F;baseName=name;result=null;genShown=false;
   normalize();refreshModel(true);
 }
 
@@ -477,7 +827,7 @@ function generate(){
       const th=i*2*Math.PI/N,c=Math.cos(th),s=Math.sin(th);
       planes.push({nx:-s,ny:c,dx:c,dy:s,ox:cx,oy:cy,i,theta:th});
     }
-    infoStep=`Rayonnant : ${N} demi-plans autour de l'axe Z (pas ${(360/N).toFixed(2)}°)`;
+    infoStep=`Découpe autour du centre : ${N} pièces, une tous les ${(360/N).toFixed(2)}°`;
   }else{
     const extent=mx[A]-mn[A];
     if(extent<t){msg('','L\'épaisseur du bois dépasse la taille du modèle sur cet axe.');return;}
@@ -486,7 +836,7 @@ function generate(){
       const u=N===1?(mn[A]+mx[A])/2:mn[A]+t/2+i*(extent-t)/(N-1);
       planes.push(A===0?{nx:1,ny:0,dx:0,dy:1,ox:u,oy:0,i}:{nx:0,ny:1,dx:1,dy:0,ox:0,oy:u,i});
     }
-    infoStep=`Pas entre pièces : ${spacing.toFixed(2)} mm (vide ${(spacing-t).toFixed(2)} mm)`;
+    infoStep=`Écart entre pièces : ${spacing.toFixed(2)} mm (${(spacing-t).toFixed(2)} mm de vide)`;
     if(N>1&&spacing<t)warns.push(`Les pièces se chevauchent : pas ${spacing.toFixed(2)} mm < épaisseur ${t} mm. Réduis le nombre de pièces (max ≈ ${Math.floor((extent-t)/t)+1}).`);
   }
   const pieces=[];let openTotal=0,noTab=0;
@@ -533,21 +883,20 @@ function generate(){
     }
   }
 
-  // SVG
-  const showL=$('lbl').checked,showP=$('lblPlate').checked,fmt=v=>v.toFixed(3);
+  // Éléments à ranger : tracé de découpe (cut) et numéros (lbl) restent séparés pour pouvoir activer les numéros ensuite
+  const fmt=v=>v.toFixed(3);
   const plateW=pX1-pX0,plateH=pY1-pY0;
   const sx=x=>x-pX0,sy=y=>pY1-y; // vue de dessus (Y vers le haut)
-  let pin=`<path d="M0 0H${fmt(plateW)}V${fmt(plateH)}H0Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
+  let pinCut=`<path d="M0 0H${fmt(plateW)}V${fmt(plateH)}H0Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
   for(const s of slots){
-    pin+=`<path d="${s.pts.map((q,k)=>(k?'L':'M')+fmt(sx(q[0]))+' '+fmt(sy(q[1]))).join('')}Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
+    pinCut+=`<path d="${s.pts.map((q,k)=>(k?'L':'M')+fmt(sx(q[0]))+' '+fmt(sy(q[1]))).join('')}Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
   }
-  if(showP){
-    const seen=new Set();
-    for(const s of slots){if(seen.has(s.n))continue;seen.add(s.n);
-      const q=s.pts[1];
-      pin+=`<text x="${fmt(sx(q[0]))}" y="${fmt(sy(q[1]))}" font-size="2.5" fill="#0000ff" font-family="sans-serif">${s.n}</text>`;}
-  }
-  const plate={kind:'plate',w:plateW,h:plateH,inner:pin,name:'plateau'};
+  let pinLbl='';
+  {const seen=new Set();
+   for(const s of slots){if(seen.has(s.n))continue;seen.add(s.n);
+     const q=s.pts[1];
+     pinLbl+=`<text x="${fmt(sx(q[0]))}" y="${fmt(sy(q[1]))}" font-size="2.5" fill="#0000ff" font-family="sans-serif">${s.n}</text>`;}}
+  const plate={kind:'plate',w:plateW,h:plateH,cut:pinCut,lbl:pinLbl};
   const pieceItems=[];let smallLbl=0;
   for(const p of valid){
     let x0=1e18,x1=-1e18,z0=1e18,z1=-1e18;
@@ -557,30 +906,45 @@ function generate(){
     for(const poly of p.geom)for(const r of poly){
       r.forEach((q,k)=>{d+=(k?'L':'M')+fmt(q[0]-x0)+' '+fmt(z1-q[1]);});d+='Z';
     }
-    let inner=`<path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
-    if(showL&&p.tabs.length){ // le numéro est gravé sur l'ergot, dans la partie qui entre dans la plaque (donc cachée)
+    const cut=`<path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
+    let lbl='';
+    if(p.tabs.length){ // le numéro est gravé sur l'ergot, dans la partie qui entre dans la plaque (donc cachée)
       let tb=p.tabs[0];for(const q of p.tabs)if(q[1]-q[0]>tb[1]-tb[0])tb=q;
       const txt=String(p.i+1),fs=Math.min(plateT*0.7,(tb[1]-tb[0])*0.9/(0.62*txt.length));
       if(fs<1.2)smallLbl++;
-      inner+=`<text x="${fmt((tb[0]+tb[1])/2-x0)}" y="${fmt(z1+plateT/2+fs*0.36)}" font-size="${fs.toFixed(2)}" text-anchor="middle" fill="#0000ff" font-family="sans-serif">${txt}</text>`;
+      lbl=`<text x="${fmt((tb[0]+tb[1])/2-x0)}" y="${fmt(z1+plateT/2+fs*0.36)}" font-size="${fs.toFixed(2)}" text-anchor="middle" fill="#0000ff" font-family="sans-serif">${txt}</text>`;
     }
-    pieceItems.push({kind:'piece',n:p.i+1,w,h,inner});
+    pieceItems.push({kind:'piece',n:p.i+1,w,h,cut,lbl});
   }
-  if(smallLbl)warns.push(`${smallLbl} numéro(s) gravé(s) très petit(s) (< 1,2 mm) sur l'ergot : augmente l'épaisseur du plateau ou la largeur d'ergot.`);
-  const wrap=(inner,w,h)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${fmt(w)}mm" height="${fmt(h)}mm" viewBox="0 0 ${fmt(w)} ${fmt(h)}">${inner}</svg>`;
+  calc={plate,pieceItems,smallLbl,warns,t,plateT,nPieces:valid.length,nSlots:slots.length,plateW,plateH,
+        infoBase:`Modèle : ${(mx[0]-mn[0]).toFixed(1)} × ${(mx[1]-mn[1]).toFixed(1)} × ${(mx[2]-mn[2]).toFixed(1)} mm\n${infoStep}`};
+  result={pieces,slots,t,plateT,bounds:{pX0,pX1,pY0,pY1},mn,mx,files:{},sheets:[]};
+  stale=false;
+  buildPreview();
+  layoutSheets();
+  onCalculated();
+}
+
+function layoutSheets(){
+  if(!calc)return;
+  const {plate,pieceItems,t,plateT}=calc,fmt=v=>v.toFixed(3),warns=[...calc.warns];
+  const showL=$('lbl').checked,showP=$('lblPlate').checked;
+  const inner=it=>it.cut+((it.kind==='plate'?showP:showL)?it.lbl:'');
+  if(showL&&calc.smallLbl)warns.push(`${calc.smallLbl} numéro(s) gravé(s) très petit(s) (moins de 1,2 mm) sur l'ergot : augmente l'épaisseur de la plaque ou la largeur des ergots.`);
+  const wrap=(body,w,h)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${fmt(w)}mm" height="${fmt(h)}mm" viewBox="0 0 ${fmt(w)} ${fmt(h)}">${body}</svg>`;
 
   // Rangement sur les planches
   const SW=+$('sheetW').value||210,SH=+$('sheetH').value||297,sm=Math.max(0,+$('shMar').value||0),sg=Math.max(0,+$('shGap').value||0),allowRot=$('shRot').checked;
   const tStr=v=>String(+v.toFixed(2));
   const sameMat=Math.abs(plateT-t)<0.01;
   const groups=sameMat?[{tag:`bois${tStr(t)}mm`,label:`bois ${tStr(t)} mm`,items:[plate,...pieceItems]}]
-    :[{tag:`bois${tStr(t)}mm`,label:`bois ${tStr(t)} mm`,items:pieceItems},{tag:`plateau${tStr(plateT)}mm`,label:`plateau ${tStr(plateT)} mm`,items:[plate]}];
+    :[{tag:`bois${tStr(t)}mm`,label:`bois ${tStr(t)} mm`,items:pieceItems},{tag:`plateau${tStr(plateT)}mm`,label:`plaque ${tStr(plateT)} mm`,items:[plate]}];
   const sheets=[];
   for(const g of groups){
     const {bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot);
     for(const b of bins)sheets.push({g,W:SW,H:SH,pl:b.placements});
     for(const it of oversize){
-      warns.push(`${it.kind==='plate'?'Le plateau':'La pièce '+it.n} (${it.w.toFixed(0)} × ${it.h.toFixed(0)} mm) dépasse le support ${SW} × ${SH} mm : exporté seul sur une planche plus grande.`);
+      warns.push(`${it.kind==='plate'?'La plaque de base':'La pièce '+it.n} (${it.w.toFixed(0)} × ${it.h.toFixed(0)} mm) dépasse le format ${SW} × ${SH} mm : elle est exportée seule, sur une planche plus grande.`);
       sheets.push({g,W:it.w+2*sm,H:it.h+2*sm,pl:[{it,x:0,y:0,rot:false}]});
     }
   }
@@ -589,39 +953,53 @@ function generate(){
     let body='';
     for(const q of sh.pl){
       const X=sm+q.x,Y=sm+q.y;
-      body+=q.rot?`<g transform="translate(${fmt(X+q.it.h)} ${fmt(Y)}) rotate(90)">${q.it.inner}</g>`:`<g transform="translate(${fmt(X)} ${fmt(Y)})">${q.it.inner}</g>`;
+      body+=q.rot?`<g transform="translate(${fmt(X+q.it.h)} ${fmt(Y)}) rotate(90)">${inner(q.it)}</g>`:`<g transform="translate(${fmt(X)} ${fmt(Y)})">${inner(q.it)}</g>`;
     }
     const svg=wrap(body,sh.W,sh.H);
     const name=`${baseName}_planche_${String(i+1).padStart(2,'0')}_${sh.g.tag}.svg`;
     const nums=sh.pl.filter(q=>q.it.kind==='piece').map(q=>q.it.n).sort((a,b)=>a-b);
     const hasPlate=sh.pl.some(q=>q.it.kind==='plate');
-    const desc=`Planche ${i+1}/${sheets.length} · ${sh.W.toFixed(0)}×${sh.H.toFixed(0)} mm · ${sh.g.label} · `+(hasPlate?'plateau':'')+(hasPlate&&nums.length?' + ':'')+(nums.length?`${nums.length} pièce${nums.length>1?'s':''} (n° ${nums.length>8?nums[0]+'…'+nums[nums.length-1]:nums.join(', ')})`:'');
-    files['planches/'+name]=svg;sheetFiles.push({name,svg,desc});
+    const what=(hasPlate?'plaque de base':'')+(hasPlate&&nums.length?' et ':'')+(nums.length?`${nums.length} pièce${nums.length>1?'s':''}`:'');
+    const nlist=nums.length&&nums.length<=8?`, n° ${nums.join(', ')}`:'';
+    files['planches/'+name]=svg;
+    sheetFiles.push({name,svg,title:`Planche ${i+1}`,sub:`${what}${nlist}`,cap:`Planche ${i+1} sur ${sheets.length} : ${sh.W.toFixed(0)} × ${sh.H.toFixed(0)} mm, ${what}, ${sh.g.label}`});
   });
-  files[`pieces_individuelles/${baseName}_plateau.svg`]=wrap(plate.inner,plate.w,plate.h);
-  for(const it of pieceItems)files[`pieces_individuelles/${baseName}_piece_${String(it.n).padStart(2,'0')}.svg`]=wrap(it.inner,it.w,it.h);
-  result={files,sheets:sheetFiles,pieces,slots,t,plateT,bounds:{pX0,pX1,pY0,pY1},mn,mx};
-  $('view2d').innerHTML=sheetFiles.map(f=>`<div class="sheetBox"><div class="cap">${f.desc}</div>${f.svg}</div>`).join('');
-  const list=$('sheetList');list.innerHTML='';
-  for(const f of sheetFiles){const b=document.createElement('button');b.textContent='⬇ '+f.desc;b.onclick=()=>download(f.name,f.svg,'image/svg+xml');list.appendChild(b);}
-  buildPreview();
-  msg(`Modèle : ${(mx[0]-mn[0]).toFixed(1)} × ${(mx[1]-mn[1]).toFixed(1)} × ${(mx[2]-mn[2]).toFixed(1)} mm\n${valid.length} pièces, ${slots.length} fentes\n${infoStep}\nPlateau : ${plateW.toFixed(1)} × ${plateH.toFixed(1)} mm\n${sheets.length} planche${sheets.length>1?'s':''} de ${SW} × ${SH} mm (placement par boîtes englobantes).\nTrait rouge = découpe, bleu = numéro (à graver sur l'ergot).`,warns.join('\n'));
+  files[`pieces_individuelles/${baseName}_plateau.svg`]=wrap(inner(plate),plate.w,plate.h);
+  for(const it of pieceItems)files[`pieces_individuelles/${baseName}_piece_${String(it.n).padStart(2,'0')}.svg`]=wrap(inner(it),it.w,it.h);
+  result.files=files;result.sheets=sheetFiles;
+  $('view2d').innerHTML=sheetFiles.map(f=>`<div class="sheetBox"><div class="cap">${f.cap}</div>${f.svg}</div>`).join('');
+  const box=$('sheetCards');box.innerHTML='';
+  for(const f of sheetFiles){
+    const d=document.createElement('div');d.className='sheet';
+    d.innerHTML=`<div class="th">${f.svg}</div><div class="meta"><b>${f.title}</b><span>${f.sub}<br>${sheets[sheetFiles.indexOf(f)].g.label}</span></div>`;
+    const b=document.createElement('button');b.className='btn sm';b.innerHTML='<svg class="ic"><use href="#i-download"/></svg>SVG';
+    b.onclick=()=>download(f.name,f.svg,'image/svg+xml');d.appendChild(b);box.appendChild(d);
+  }
+  $('stPieces').textContent=calc.nPieces;$('stSlots').textContent=calc.nSlots;$('stPlate').textContent=Math.round(calc.plateW)+'×'+Math.round(calc.plateH);
+  msg(`${calc.infoBase}\n${sheets.length} planche${sheets.length>1?'s':''} de ${SW} × ${SH} mm`,warns.join('\n'));
 }
-function msg(i,w){$('info').textContent=i;$('warn').textContent=w;}
+let lastInfo='';
+function msg(i,w){
+  lastInfo=i||'';
+  const bi=$('info'),bw=$('warn');bi.innerHTML='';bw.innerHTML='';
+  const mk=(cls,icon,txt)=>{const d=document.createElement('div');d.className='note '+cls;d.innerHTML=`<svg class="ic"><use href="#${icon}"/></svg><span style="white-space:pre-line"></span>`;d.lastChild.textContent=txt;return d;};
+  if(i)bi.appendChild(mk('','i-info',String(i)));
+  if(w)for(const l of String(w).split('\n'))if(l.trim())bw.appendChild(mk('warn','i-warn',l));
+}
 
 /* ---------------- 3D ---------------- */
 const host=$('view3d');
-const renderer=new THREE.WebGLRenderer({antialias:true});
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 host.appendChild(renderer.domElement);
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x14161a);
+const scene=new THREE.Scene();scene.background=null;
 const camera=new THREE.PerspectiveCamera(45,1,0.1,10000);camera.up.set(0,0,1);camera.position.set(150,-200,150);
 const controls=new OrbitControls(camera,renderer.domElement);
 const ambient=new THREE.AmbientLight(0xffffff,.6);scene.add(ambient);
 const dl=new THREE.DirectionalLight(0xffffff,1.1);dl.position.set(200,-300,400);scene.add(dl);
 const dl2=new THREE.DirectionalLight(0xffffff,.4);dl2.position.set(-200,200,100);scene.add(dl2);
-const grid=new THREE.GridHelper(400,40,0x444a55,0x2a2f37);grid.rotation.x=Math.PI/2;grid.position.z=-0.01;scene.add(grid);
+const grid=new THREE.GridHelper(400,40,0xa9b3e3,0xd2d8f4);grid.rotation.x=Math.PI/2;grid.position.z=-0.01;scene.add(grid);
 let modelMesh=null;const pieceGroup=new THREE.Group();scene.add(pieceGroup);
 const sun=new THREE.DirectionalLight(0xfff1dd,2.4);sun.castShadow=true;sun.visible=false;sun.shadow.mapSize.set(2048,2048);scene.add(sun);scene.add(sun.target);
 const hemi=new THREE.HemisphereLight(0xffffff,0x9a8a74,0);scene.add(hemi);
@@ -639,12 +1017,12 @@ function refreshModel(refit){
   const W=working(),g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.BufferAttribute(Float32Array.from(W),3));
   g.setIndex(new THREE.BufferAttribute(F,1));g.computeVertexNormals();
-  modelMesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x9aa7b8,roughness:.6,side:THREE.DoubleSide,transparent:true,opacity:1}));
+  modelMesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x6f8bff,roughness:.6,side:THREE.DoubleSide,transparent:true,opacity:1}));
   scene.add(modelMesh);
   g.computeBoundingBox();const bb=g.boundingBox,size=new THREE.Vector3();bb.getSize(size);
-  $('info').textContent=`Modèle : ${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm (${F.length/3} triangles)`;
+  msg('','');
   clearPieces();
-  result=null;$('sheetList').innerHTML='';
+  result=null;calc=null;stale=false;$('sheetCards').innerHTML='';$('stats2').hidden=true;$('genTxt').textContent='Calculer la découpe';onModelReady(size);
   if(realMode){realMode=false;applyMode();}
   if(refit){
     const r=Math.max(size.x,size.y,size.z);
@@ -688,20 +1066,20 @@ function edgeTexture(plies,t){ // tranche coupée au laser : plis visibles, bord
 }
 function applyMode(){
   const fx=realMode&&!!result;
-  scene.background=new THREE.Color(fx?0xd7d0c4:0x14161a);
-  grid.visible=!fx;sun.visible=fx;hemi.intensity=fx?.8:0;
+  scene.background=fx?new THREE.Color(0xe9e2d6):null;
+  grid.visible=!fx;sun.visible=fx;hemi.intensity=fx?.8:.45;
   ambient.intensity=fx?.35:.6;dl.intensity=fx?.25:1.1;dl2.intensity=fx?.1:.4;
   renderer.toneMapping=fx?THREE.ACESFilmicToneMapping:THREE.NoToneMapping;
   if(modelMesh)modelMesh.material.needsUpdate=true;
   table.material.needsUpdate=true;
-  $('tabReal').classList.toggle('on',realMode);
+  syncTabs();
   if(result)buildPreview();
 }
 function buildPreview(){
   clearPieces();
   const {pieces,t,plateT,bounds,mn,mx}=result,real=realMode;
   const v2=q=>new THREE.Vector2(q[0],q[1]);
-  const plain=new THREE.MeshStandardMaterial({color:0xd9b382,roughness:.8,side:THREE.DoubleSide});
+  const plain=new THREE.MeshStandardMaterial({color:0xe9c898,roughness:.8,side:THREE.DoubleSide});
   const red=new THREE.MeshStandardMaterial({color:0xe53935,emissive:0x5a0b0b,roughness:.6,side:THREE.DoubleSide});
   const lineMat=new THREE.LineBasicMaterial({color:0x6b4a22});
   const plyN=v=>Math.min(9,Math.max(2,Math.round(v)));
@@ -745,7 +1123,7 @@ function buildPreview(){
   const sh=new THREE.Shape([[bounds.pX0,bounds.pY0],[bounds.pX1,bounds.pY0],[bounds.pX1,bounds.pY1],[bounds.pX0,bounds.pY1]].map(v2));
   for(const s of result.slots)sh.holes.push(new THREE.Path(s.pts.map(v2)));
   const pg=new THREE.ExtrudeGeometry(sh,{depth:plateT,bevelEnabled:false});pg.translate(0,0,-plateT);
-  const pm=new THREE.Mesh(pg,real?[faceMat(),plateSide]:new THREE.MeshStandardMaterial({color:0xb98d5a,roughness:.85,side:THREE.DoubleSide}));
+  const pm=new THREE.Mesh(pg,real?[faceMat(),plateSide]:new THREE.MeshStandardMaterial({color:0xd6a96c,roughness:.85,side:THREE.DoubleSide}));
   pm.castShadow=pm.receiveShadow=real;
   if(!real)pm.add(new THREE.LineSegments(new THREE.EdgesGeometry(pg,30),lineMat));
   pieceGroup.add(pm);
@@ -760,9 +1138,9 @@ function buildPreview(){
 }
 
 /* ---------------- Générateur de tore ---------------- */
-function setIndexed(V,Fi,name){
+function setIndexed(V,Fi,name,refit=true){
   baseV=Float64Array.from(V);F=Uint32Array.from(Fi);baseName=name;result=null;
-  normalize();refreshModel(true);
+  normalize();refreshModel(refit);
 }
 function resampleClosed(poly,nv){
   const m=poly.length,len=[0];
@@ -874,8 +1252,8 @@ function makeTorus(){
   }
   if(vol<0)for(let f=0;f<Fi.length;f+=3){const t=Fi[f+1];Fi[f+1]=Fi[f+2];Fi[f+2]=t;}
   lastGen={V,F:Fi,name:'tore_'+shape};
-  setIndexed(V,Fi,'tore_'+shape);
-  let info=`Tore ${shape} : Ø ${Do} / ${Di} mm, section Ø ${(2*rho).toFixed(1)} mm, ${Fi.length/3} triangles`;
+  setIndexed(V,Fi,'tore_'+shape,!genShown);genShown=true;
+  let info=`Anneau « ${SHAPE_FR[shape]} » : Ø ${Do} / ${Di} mm, section de ${(2*rho).toFixed(1)} mm`;
   if(Math.abs(twist-twIn)>0.01)info+=`\nTwist ajusté à ${twist}° (multiple de ${step.toFixed(1)}° pour que le tore se referme).`;
   else if(twist>0)info+=`\nTwist : ${twist}°`;
   if(Math.abs(Smax-1)>0.001)info+=`\nTaille : 100 % → ${Math.round(Smax*100)} % (${cyc} cycle${cyc>1?'s':''}), variation progressive.`;
@@ -915,10 +1293,12 @@ function updateTwistOptions(){
 function updateGenUI(){
   updateTwistOptions();
   const s=$('gShape').value;
-  $('gNRow').style.display=['polygon','star','flower'].includes(s)?'flex':'none';
-  $('gLRow').style.display=['star','flower'].includes(s)?'flex':'none';
-  $('gRRow').style.display=s==='circle'?'none':'flex';
-  $('gDrawRow').style.display=s==='draw'?'flex':'none';
+  $('gNRow').hidden=!['polygon','star','flower'].includes(s);
+  $('gLRow').hidden=!['star','flower'].includes(s);
+  $('gRRow').hidden=s==='circle';
+  $('gDrawRow').hidden=s!=='draw';
+  $('gNLab').textContent=s==='polygon'?'Nombre de côtés':(s==='flower'?'Nombre de pétales':'Nombre de pointes');
+  syncTiles('gShape');
 }
 $('gShape').onchange=()=>{updateGenUI();if($('gShape').value==='draw'&&!drawnPoly)openDraw();};updateGenUI();
 
@@ -927,14 +1307,14 @@ const dC=$('dCanvas'),dctx=dC.getContext('2d'),DG=160,DS=400;
 let dPts=[],dDrawing=false,dClosed=false;
 function dRedraw(){
   dctx.clearRect(0,0,DS,DS);
-  dctx.strokeStyle='#2d3138';dctx.lineWidth=1;
+  dctx.strokeStyle='#c9d0f2';dctx.lineWidth=1;
   dctx.beginPath();dctx.moveTo(DS/2,0);dctx.lineTo(DS/2,DS);dctx.moveTo(0,DS/2);dctx.lineTo(DS,DS/2);dctx.stroke();
-  dctx.setLineDash([6,5]);dctx.strokeStyle='#5b6370';
+  dctx.setLineDash([6,5]);dctx.strokeStyle='#1b2340';
   dctx.beginPath();dctx.arc(DS/2,DS/2,DG,0,Math.PI*2);dctx.stroke();dctx.setLineDash([]);
   if(dPts.length>1){
     dctx.beginPath();dPts.forEach((p,i)=>i?dctx.lineTo(p[0],p[1]):dctx.moveTo(p[0],p[1]));
-    if(dClosed){dctx.closePath();dctx.fillStyle='rgba(224,164,88,.25)';dctx.fill();}
-    dctx.strokeStyle='#e0a458';dctx.lineWidth=2.5;dctx.lineJoin='round';dctx.stroke();
+    if(dClosed){dctx.closePath();dctx.fillStyle='rgba(255,90,54,.18)';dctx.fill();}
+    dctx.strokeStyle='#ff5a36';dctx.lineWidth=2.5;dctx.lineJoin='round';dctx.stroke();
   }
 }
 function dPos(e){const r=dC.getBoundingClientRect();return [(e.clientX-r.left)*DS/r.width,(e.clientY-r.top)*DS/r.height];}
@@ -946,8 +1326,8 @@ dC.onpointermove=e=>{
 };
 const dEnd=()=>{if(!dDrawing)return;dDrawing=false;dClosed=dPts.length>=8;dRedraw();};
 dC.onpointerup=dEnd;dC.onpointercancel=dEnd;
-function openDraw(){$('drawModal').style.display='flex';dRedraw();}
-function closeDraw(){$('drawModal').style.display='none';}
+function openDraw(){$('drawModal').classList.add('on');dRedraw();}
+function closeDraw(){$('drawModal').classList.remove('on');}
 function drawPreview(){
   const c=$('gPrev'),x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
   if(!drawnPoly)return;
@@ -955,7 +1335,7 @@ function drawPreview(){
   const cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
   const r=Math.max(...drawnPoly.map(p=>Math.hypot(p[0]-cx,p[1]-cy)))||1,s=(c.width/2-4)/r;
   x.beginPath();drawnPoly.forEach((p,i)=>{const X=c.width/2+(p[0]-cx)*s,Y=c.height/2-(p[1]-cy)*s;i?x.lineTo(X,Y):x.moveTo(X,Y);});
-  x.closePath();x.fillStyle='rgba(224,164,88,.35)';x.fill();x.strokeStyle='#e0a458';x.lineWidth=1.5;x.stroke();
+  x.closePath();x.fillStyle='rgba(255,90,54,.25)';x.fill();x.strokeStyle='#ff5a36';x.lineWidth=1.5;x.stroke();
 }
 function polyArea(r){let a=0;for(let i=0;i<r.length;i++){const p=r[i],q=r[(i+1)%r.length];a+=p[0]*q[1]-q[0]*p[1];}return a/2;}
 $('dOk').onclick=()=>{
@@ -971,14 +1351,13 @@ $('dOk').onclick=()=>{
   if(!best||bestA<0.02){$('dMsg').textContent='Forme trop petite ou invalide, recommence.';return;}
   drawnPoly=best.slice(0,-1);
   drawPreview();closeDraw();
-  $('gShape').value='draw';updateGenUI();
+  $('gShape').value='draw';updateGenUI();scheduleLive(0);
 };
 $('dClear').onclick=()=>{dPts=[];dClosed=false;$('dMsg').textContent='';dRedraw();};
-$('dCancel').onclick=()=>{closeDraw();if(!drawnPoly&&$('gShape').value==='draw'){$('gShape').value='star';updateGenUI();}};
+$('dCancel').onclick=()=>{closeDraw();if(!drawnPoly&&$('gShape').value==='draw'){$('gShape').value='star';updateGenUI();scheduleLive(0);}};
 $('gDraw').onclick=openDraw;
-addEventListener('keydown',e=>{if(e.key==='Escape'&&$('drawModal').style.display==='flex')$('dCancel').click();});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('drawModal').classList.contains('on'))$('dCancel').click();});
 $('gN').oninput=updateTwistOptions;
-$('gMake').onclick=makeTorus;
 $('gStl').onclick=exportSTL;
 
 /* ---------------- UI ---------------- */
@@ -986,21 +1365,25 @@ function download(name,data,type){
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 }
-$('file').onchange=async e=>{
-  const f=e.target.files[0];if(!f)return;
+async function loadFile(f){
+  if(!f)return;
   try{
-    const buf=await f.arrayBuffer(),ext=f.name.split('.').pop().toLowerCase();
+    const ext=f.name.split('.').pop().toLowerCase();
+    if(!['stl','3mf'].includes(ext))throw new Error('format non pris en charge, choisis un fichier STL ou 3MF.');
+    const buf=await f.arrayBuffer();
     const pos=ext==='3mf'?await parse3MF(buf):parseSTL(buf);
     setMesh(pos,f.name.replace(/\.[^.]+$/,''));
-  }catch(err){msg('','Erreur d\'import : '+err.message);}
-};
+    setAxis('0');
+  }catch(err){msg('','Import impossible : '+err.message);}
+}
+$('file').onchange=e=>loadFile(e.target.files[0]);
 $('demo').onclick=()=>{
   const sh=new THREE.Shape();
   for(let i=0;i<10;i++){const r=i%2?22:50,a=i/10*Math.PI*2;i?sh.lineTo(Math.cos(a)*r,Math.sin(a)*r):sh.moveTo(Math.cos(a)*r,Math.sin(a)*r);}
   sh.closePath();
   const hole=new THREE.Path();hole.absarc(0,0,10,0,Math.PI*2,true);sh.holes.push(hole);
   const g=new THREE.ExtrudeGeometry(sh,{depth:30,bevelEnabled:false}).toNonIndexed();
-  setMesh(g.attributes.position.array,'exemple');
+  setMesh(g.attributes.position.array,'exemple');setAxis('0');
 };
 document.querySelectorAll('[data-rot]').forEach(b=>b.onclick=()=>{if(!baseV)return;rotate(b.dataset.rot);refreshModel(true);});
 $('rotApply').onclick=()=>{
@@ -1012,12 +1395,13 @@ $('flatAuto').onclick=()=>{
   if(!baseV){msg('','Importe d\'abord un modèle.');return;}
   setPick(false);
   const r=autoFlat();refreshModel(true);
-  msg($('info').textContent,r.area>0?`Posé à plat sur une face de ${r.area.toFixed(0)} mm². Si ce n'est pas la bonne, utilise « Choisir une face ».`:'Aucune face plane franche trouvée : pose approximative. Utilise « Choisir une face » ou la rotation libre.');
+  msg(lastInfo,r.area>0?`Posé à plat sur une face de ${r.area.toFixed(0)} mm². Si ce n'est pas la bonne, utilise « Choisir une face ».`:'Aucune face plane franche trouvée : pose approximative. Utilise « Choisir une face » ou la rotation libre.');
 };
 let pickMode=false;
 function setPick(on){
+  if(!$('flatPick'))return;
   pickMode=on;$('flatPick').classList.toggle('on',on);renderer.domElement.style.cursor=on?'crosshair':'';
-  $('flatHint').textContent=on?'Clique sur la face du modèle qui doit reposer sur le plateau (un simple clic, sans faire glisser).':'Le modèle doit reposer à plat (le bas touche le plateau). « Poser à plat » cherche la plus grande face plane ; « Choisir une face » te laisse cliquer la face à poser sur le sol.';
+  $('flatHint').textContent=on?'Clique sur la face du modèle qui doit reposer sur le sol (un simple clic, sans glisser).':'Le dessous du modèle doit reposer sur le sol. « Poser à plat » trouve la plus grande face plane tout seul. Sinon, clique la face de ton choix.';
 }
 $('flatPick').onclick=()=>{if(!baseV){msg('','Importe d\'abord un modèle.');return;}show('3d');setPick(!pickMode);};
 const rayc=new THREE.Raycaster(),ndc=new THREE.Vector2();let downXY=null;
@@ -1034,27 +1418,189 @@ renderer.domElement.addEventListener('pointerup',e=>{
   setPick(false);rotateToDown([n.x,n.y,n.z]);refreshModel(true);
 });
 $('scale').onchange=()=>{if(baseV)refreshModel(false);};
-$('gen').onclick=generate;
+$('gen').onclick=()=>runBusy(generate,'Découpe en cours…');
 $('sheetFmt').onchange=()=>{const v=$('sheetFmt').value;if(v==='custom')return;const [w,h]=v.split('x');$('sheetW').value=w;$('sheetH').value=h;};
-const fmtSync=()=>{const k=$('sheetW').value+'x'+$('sheetH').value;$('sheetFmt').value=[...$('sheetFmt').options].some(o=>o.value===k)?k:'custom';};
+const fmtSync=()=>{const k=$('sheetW').value+'x'+$('sheetH').value;$('sheetFmt').value=[...$('sheetFmt').options].some(o=>o.value===k)?k:'custom';syncTiles('sheetFmt');};
 $('sheetW').oninput=fmtSync;$('sheetH').oninput=fmtSync;
 $('sheetSwap').onclick=()=>{const w=$('sheetW').value;$('sheetW').value=$('sheetH').value;$('sheetH').value=w;fmtSync();};
 $('dlZip').onclick=async()=>{
-  if(!result){msg('','Génère d\'abord.');return;}
+  if(!result){toast('Calcule d\'abord la découpe.');return;}
   const z=new JSZip();for(const [n,s] of Object.entries(result.files))z.file(n,s);
   download(`${baseName}_svg.zip`,await z.generateAsync({type:'blob'}),'application/zip');
+  confetti();toast('Fichiers téléchargés. Bonne découpe !');
 };
+let view='3d';
+function syncTabs(){
+  $('tab3d').classList.toggle('on',view==='3d'&&!realMode);
+  $('tabReal').classList.toggle('on',view==='3d'&&realMode);
+  $('tab2d').classList.toggle('on',view==='2d');
+}
 const show=m=>{
+  view=m;
   $('view3d').style.display=m==='3d'?'block':'none';
   $('view2d').style.display=m==='2d'?'block':'none';
-  $('tab3d').classList.toggle('on',m==='3d');$('tab2d').classList.toggle('on',m==='2d');
+  $('hint3d').hidden=!(m==='3d'&&baseV);
+  syncTabs();
   if(m==='3d')fit();
 };
+$('tab3d').onclick=()=>{if(realMode){realMode=false;applyMode();}show('3d');};
 $('tabReal').onclick=()=>{
-  if(!result){msg('','Génère d\'abord les pièces pour voir le rendu réel.');return;}
-  realMode=!realMode;applyMode();show('3d');
+  if(!result){toast("Calcule d'abord la découpe pour voir le rendu bois.");return;}
+  realMode=true;applyMode();show('3d');
 };
-$('tab3d').onclick=()=>show('3d');$('tab2d').onclick=()=>show('2d');
+$('tab2d').onclick=()=>{
+  if(!result){toast("Calcule d'abord la découpe pour voir les planches.");return;}
+  show('2d');
+};
+
+/* ================= Assistant en 3 étapes ================= */
+const SHAPE_FR={star:'étoile',circle:'rond',square:'carré',triangle:'triangle',polygon:'polygone',flower:'fleur',heart:'cœur',draw:'dessin libre'};
+const AXIS_HELP={
+  R:"Les pièces sont réparties comme les rayons d'une roue, autour de l'axe vertical. Idéal pour un anneau, un vase ou une boule.",
+  "0":"Les tranches sont parallèles, comme des tranches de pain, dans le sens X du modèle. Essaie aussi le sens Y : l'aperçu te montre la différence.",
+  "1":"Les tranches sont parallèles, comme des tranches de pain, dans le sens Y du modèle. Essaie aussi le sens X : l'aperçu te montre la différence."
+};
+let step=1,mode=null,liveTimer=null,layTimer=null,didConfetti=false;
+
+function ringSVG(n,cls,o={}){
+  const pal=['#ff5a36','#ffd23f','#3a86ff','#14b88f','#ff6fb5','#7b5cff'],W=o.w||16,SW=o.sw||3,HS=o.hs||1;
+  let s=`<svg class="${cls||''}" viewBox="0 0 200 200" aria-hidden="true">`;
+  for(let k=0;k<n;k++){
+    const h=(22+18*(0.5+0.5*Math.sin(k/n*2*Math.PI+.4)))*HS;
+    s+=`<g transform="rotate(${(k*360/n).toFixed(2)} 100 100)"><rect x="${100-W/2}" y="${(100-64-h/2).toFixed(2)}" width="${W}" height="${h.toFixed(2)}" rx="${(W*.28).toFixed(1)}" fill="${pal[k%pal.length]}" stroke="#1b2340" stroke-width="${SW}"/></g>`;
+  }
+  return s+'</svg>';
+}
+$('logo').innerHTML=ringSVG(8,'',{w:38,sw:11,hs:1.25});
+$('heroRing').innerHTML=ringSVG(16,'ring');
+
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2800);}
+function confetti(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const pal=['#ff5a36','#ffd23f','#3a86ff','#14b88f','#ff6fb5','#7b5cff'];
+  for(let i=0;i<40;i++){
+    const d=document.createElement('i');d.className='confetti';
+    d.style.left=(5+Math.random()*90)+'vw';d.style.background=pal[i%pal.length];
+    d.style.setProperty('--dx',(Math.random()*160-80)+'px');d.style.setProperty('--r',(Math.random()*720-360)+'deg');
+    d.style.animationDelay=(Math.random()*.4)+'s';d.style.borderRadius=Math.random()<.4?'50%':'2px';
+    document.body.appendChild(d);setTimeout(()=>d.remove(),2400);
+  }
+}
+async function runBusy(fn,txt){
+  $('busyTxt').textContent=txt||'Un instant…';$('busy').classList.add('on');
+  await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,25)));
+  try{await fn();}finally{$('busy').classList.remove('on');}
+}
+
+/* --- étapes --- */
+function updateNav(){
+  $('next').disabled=(step===1&&!baseV);
+  $('next').hidden=(step===3);
+  $('prev').style.visibility=step===1?'hidden':'visible';
+  $('next').innerHTML=(step===2?'Voir les planches':'Continuer')+'<svg class="ic"><use href="#i-chev-r"/></svg>';
+}
+function goStep(n){
+  step=n;document.body.dataset.step=n;
+  $$('.pane').forEach(p=>p.classList.toggle('on',+p.dataset.step===n));
+  $$('.step').forEach(b=>{const k=+b.dataset.step;b.classList.toggle('on',k===n);b.classList.toggle('done',k<n);});
+  if(n===3){if(result)show('2d');}else if(view==='2d')show('3d');
+  updateNav();document.querySelector('.panes').scrollTop=0;
+}
+async function tryStep(k){
+  if(k===step)return;
+  if(k<step){goStep(k);return;}
+  if(!baseV){toast('Commence par importer ou créer un modèle.');return;}
+  if(step===1)goStep(2);
+  if(k===3){
+    if(!result||stale)await runBusy(generate,'Découpe en cours…');
+    if(result&&!stale)goStep(3);
+  }
+}
+$$('.step').forEach(b=>b.onclick=()=>tryStep(+b.dataset.step));
+$('next').onclick=()=>tryStep(step+1);
+$('prev').onclick=()=>goStep(step-1);
+
+/* --- choix de départ --- */
+function setMode(m){
+  mode=m;
+  $('modeChoice').hidden=!!m;$('importPanel').hidden=m!=='import';$('createPanel').hidden=m!=='create';
+  if(m==='create'){setAxis('R');scheduleLive(0);}
+}
+function setAxis(v){$('axis').value=v;$('axis').dispatchEvent(new Event('change',{bubbles:true}));}
+$('chImport').onclick=()=>setMode('import');
+$('chCreate').onclick=()=>setMode('create');
+$$('[data-back]').forEach(b=>b.onclick=()=>setMode(null));
+
+function onModelReady(size){
+  $('modelChip').hidden=false;
+  $('modelChipTxt').textContent=`Modèle prêt : ${size.x.toFixed(0)} × ${size.y.toFixed(0)} × ${size.z.toFixed(0)} mm`;
+  $('empty').hidden=true;$('hint3d').hidden=(view!=='3d');
+  updateNav();
+}
+
+/* --- aperçu en direct de la forme créée --- */
+function scheduleLive(ms=350){
+  clearTimeout(liveTimer);
+  liveTimer=setTimeout(()=>{
+    if(mode!=='create'||step!==1)return;
+    if($('gShape').value==='draw'&&!drawnPoly)return;
+    makeTorus();
+  },ms);
+}
+$('createPanel').addEventListener('input',()=>scheduleLive());
+$('createPanel').addEventListener('change',()=>scheduleLive());
+
+/* --- pastilles, puces, curseurs --- */
+function syncTiles(id){$$(`[data-sel="${id}"]`).forEach(t=>t.classList.toggle('on',t.dataset.val===$(id).value));}
+$$('[data-sel]').forEach(t=>t.addEventListener('click',()=>{
+  const sel=$(t.dataset.sel);sel.value=t.dataset.val;sel.dispatchEvent(new Event('change',{bubbles:true}));syncTiles(t.dataset.sel);
+}));
+function syncChips(){$$('.chip').forEach(c=>c.classList.toggle('on',+$(c.dataset.for).value===+c.dataset.val));}
+$$('.chip').forEach(c=>c.addEventListener('click',()=>{const n=$(c.dataset.for);n.value=c.dataset.val;n.dispatchEvent(new Event('input',{bubbles:true}));syncChips();}));
+$('t').addEventListener('input',syncChips);
+$$('input[type=range][data-pair]').forEach(r=>{
+  const n=$(r.dataset.pair);r.value=n.value;
+  r.addEventListener('input',()=>{n.value=r.value;n.dispatchEvent(new Event('input',{bubbles:true}));});
+  n.addEventListener('input',()=>{r.value=n.value;});
+});
+function updateAxisHelp(){
+  $('axisHelp').textContent=AXIS_HELP[$('axis').value]||'';
+  $('centerRow').hidden=$('axis').value!=='R';
+  syncTiles('axis');
+}
+$('axis').addEventListener('change',updateAxisHelp);
+
+/* --- réglages de l'étape 2 modifiés après un calcul --- */
+$('pane2').addEventListener('input',()=>{if(result&&!stale){stale=true;$('genTxt').textContent='Recalculer la découpe';}});
+$('pane2').addEventListener('change',()=>{if(result&&!stale){stale=true;$('genTxt').textContent='Recalculer la découpe';}});
+function onCalculated(){
+  $('genTxt').textContent='Recalculer la découpe';$('stats2').hidden=false;
+  if(!didConfetti){confetti();didConfetti=true;}
+}
+
+/* --- étape 3 : mise à jour automatique des planches --- */
+const relay=()=>{clearTimeout(layTimer);layTimer=setTimeout(()=>{if(calc)layoutSheets();},250);};
+$('pane3').addEventListener('input',relay);$('pane3').addEventListener('change',relay);
+
+/* --- glisser-déposer d'un fichier --- */
+const dropZone=$('drop');
+['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();dropZone.classList.add('over');}));
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)dropZone.classList.remove('over');});
+document.addEventListener('drop',e=>{
+  e.preventDefault();dropZone.classList.remove('over');
+  const f=e.dataTransfer&&e.dataTransfer.files[0];
+  if(f){goStep(1);setMode('import');loadFile(f);}
+});
+
+/* --- fenêtres --- */
+$('helpBtn').onclick=()=>$('helpModal').classList.add('on');
+$('helpOk').onclick=()=>$('helpModal').classList.remove('on');
+$('helpModal').addEventListener('click',e=>{if(e.target===$('helpModal'))$('helpModal').classList.remove('on');});
+addEventListener('keydown',e=>{if(e.key==='Escape')$('helpModal').classList.remove('on');});
+
+/* --- démarrage --- */
+['gShape','axis','sheetFmt'].forEach(syncTiles);
+syncChips();updateAxisHelp();goStep(1);show('3d');
 </script>
 </body>
 </html>
