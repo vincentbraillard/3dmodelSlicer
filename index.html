@@ -27,6 +27,12 @@
   #view2d svg{max-width:100%;height:auto;display:block}
   .tabs{position:absolute;top:10px;right:10px;z-index:5;display:flex;gap:6px}
   .tabs button.on{border-color:var(--acc);color:var(--acc)}
+  button.on{border-color:var(--acc);color:var(--acc)}
+  #sheetList{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+  #sheetList button{text-align:left;font-size:12px}
+  .sheetBox{margin:0 0 18px}
+  .sheetBox .cap{font:600 12px system-ui,sans-serif;color:#333;margin-bottom:4px}
+  .sheetBox svg{border:1px solid #888;background:#fff}
   @media(max-width:800px){body{grid-template-columns:1fr;grid-template-rows:auto 60vh;height:auto}}
 </style>
 <script type="importmap">
@@ -62,8 +68,8 @@
   <label id="gNRow">Nombre de pointes / côtés <input type="number" id="gN" value="5" min="3" max="24" step="1"></label>
   <label id="gLRow">Longueur des pointes (%) <input type="number" id="gL" value="55" min="5" max="95" step="1"></label>
   <label id="gRRow">Arrondi des angles (%) <input type="number" id="gR" value="35" min="0" max="100" step="5"></label>
-  <label>Twist le long du tore (°) <input type="number" id="gTw" value="0" min="0" max="720" step="1"></label>
-  <input type="range" id="gTwR" min="0" max="720" step="1" value="0" style="width:100%">
+  <label>Twist le long du tore <select id="gTw"></select></label>
+  <p class="s">Seuls les angles qui referment le tore sont proposés : multiples de 360° / symétrie de la forme (jusqu'à 720°).</p>
   <label>Taille max le long du tore (%) <input type="number" id="gS" value="100" min="10" max="400" step="5"></label>
   <label>Cycles de variation <input type="number" id="gCyc" value="1" min="1" max="12" step="1"></label>
   <p class="s">100 % = taille constante. Avec 200 %, la section part à 100 %, atteint 200 % à mi-tour puis revient à 100 % (variation progressive). Si tu mets 50 %, la section rétrécit.</p>
@@ -82,7 +88,18 @@
     <button data-rot="y">Tourner Y 90°</button>
     <button data-rot="z">Tourner Z 90°</button>
   </div>
-  <p class="s">Le modèle doit être posé « à plat » : le bas (Z min) touche le plateau.</p>
+  <div class="row">
+    <button id="flatAuto">Poser à plat (auto)</button>
+    <button id="flatPick">Choisir une face…</button>
+  </div>
+  <div class="row" style="align-items:center">
+    <span class="s" style="margin:0">Rotation libre (°)</span>
+    <input type="number" id="rx" value="0" step="1" title="autour de X" style="width:58px">
+    <input type="number" id="ry" value="0" step="1" title="autour de Y" style="width:58px">
+    <input type="number" id="rz" value="0" step="1" title="autour de Z" style="width:58px">
+    <button id="rotApply">Appliquer</button>
+  </div>
+  <p class="s" id="flatHint">Le modèle doit reposer à plat (le bas touche le plateau). « Poser à plat » cherche la plus grande face plane ; « Choisir une face » te laisse cliquer la face à poser sur le sol.</p>
   <label>Échelle (%) <input type="number" id="scale" value="100" min="1" step="1"></label>
 
   <h2>2. Coupe</h2>
@@ -101,15 +118,28 @@
   <label>Jeu des fentes (mm) <input type="number" id="clr" value="0.1" min="0" step="0.05"></label>
   <label>Marge du plateau (mm) <input type="number" id="mar" value="10" min="0" step="1"></label>
 
-  <h2>4. Export</h2>
-  <label>Largeur planche laser (mm) <input type="number" id="sheetW" value="600" min="50" step="10"></label>
-  <label>Repères sous les pièces <input type="checkbox" id="lbl" checked></label>
-  <div class="row"><button class="p" id="gen">Générer</button></div>
-  <div class="row">
-    <button id="dlZip">ZIP (1 SVG / pièce)</button>
-    <button id="dlSheet">Planche unique</button>
-    <button id="dlPlate">Plateau</button>
-  </div>
+  <h2>4. Export (planches laser)</h2>
+  <label>Format du support
+    <select id="sheetFmt">
+      <option value="105x148">A6 (105 × 148)</option>
+      <option value="148x210">A5 (148 × 210)</option>
+      <option value="210x297" selected>A4 (210 × 297)</option>
+      <option value="297x420">A3 (297 × 420)</option>
+      <option value="420x594">A2 (420 × 594)</option>
+      <option value="300x200">30 × 20 cm</option>
+      <option value="600x400">60 × 40 cm</option>
+      <option value="custom">Personnalisé</option>
+    </select></label>
+  <label>Largeur du support (mm) <input type="number" id="sheetW" value="210" min="20" step="1"></label>
+  <label>Hauteur du support (mm) <input type="number" id="sheetH" value="297" min="20" step="1"></label>
+  <div class="row"><button id="sheetSwap">Inverser largeur / hauteur</button></div>
+  <label>Marge du support (mm) <input type="number" id="shMar" value="3" min="0" step="0.5"></label>
+  <label>Espacement entre pièces (mm) <input type="number" id="shGap" value="2" min="0" step="0.5"></label>
+  <label>Rotation 90° autorisée <input type="checkbox" id="shRot" checked></label>
+  <label>Numéros sur les ergots <input type="checkbox" id="lbl" checked></label>
+  <label>Numéros sur le plateau <input type="checkbox" id="lblPlate" checked></label>
+  <div class="row"><button class="p" id="gen">Générer</button><button id="dlZip">Tout télécharger (ZIP)</button></div>
+  <div id="sheetList"></div>
   <div id="info"></div>
   <div id="warn"></div>
 </aside>
@@ -243,6 +273,62 @@ function rotate(ax){
   }
   normalize();
 }
+const mul3=(a,b)=>{const r=[];for(let i=0;i<3;i++)for(let j=0;j<3;j++)r.push(a[3*i]*b[j]+a[3*i+1]*b[3+j]+a[3*i+2]*b[6+j]);return r;};
+function applyMat(m){
+  for(let i=0;i<baseV.length;i+=3){
+    const x=baseV[i],y=baseV[i+1],z=baseV[i+2];
+    baseV[i]=m[0]*x+m[1]*y+m[2]*z;baseV[i+1]=m[3]*x+m[4]*y+m[5]*z;baseV[i+2]=m[6]*x+m[7]*y+m[8]*z;
+  }
+  normalize();
+}
+function rotXYZ(rx,ry,rz){
+  const d=Math.PI/180,cx=Math.cos(rx*d),sx=Math.sin(rx*d),cy=Math.cos(ry*d),sy=Math.sin(ry*d),cz=Math.cos(rz*d),sz=Math.sin(rz*d);
+  const X=[1,0,0,0,cx,-sx,0,sx,cx],Y=[cy,0,sy,0,1,0,-sy,0,cy],Z=[cz,-sz,0,sz,cz,0,0,0,1];
+  applyMat(mul3(Z,mul3(Y,X)));
+}
+function rotateToDown(n){ // fait pointer la normale n vers -Z (la face repose sur le sol)
+  const l=Math.hypot(n[0],n[1],n[2])||1,a=[n[0]/l,n[1]/l,n[2]/l],c=-a[2];
+  const vv=[a[1]*(-1)-a[2]*0,a[2]*0-a[0]*(-1),0]; // a × (0,0,-1)
+  if(Math.hypot(vv[0],vv[1],vv[2])<1e-9){ if(c>0){normalize();return;} applyMat([1,0,0,0,-1,0,0,0,-1]);return; }
+  const k=1/(1+c),vx=[0,-vv[2],vv[1],vv[2],0,-vv[0],-vv[1],vv[0],0],vx2=mul3(vx,vx);
+  const R=[];for(let i=0;i<9;i++)R.push((i%4===0?1:0)+vx[i]+vx2[i]*k);
+  applyMat(R);
+}
+function autoFlat(){
+  const nT=F.length/3,V=baseV,N=new Float64Array(nT*3),Ar=new Float64Array(nT);
+  let mn=[1e18,1e18,1e18],mx=[-1e18,-1e18,-1e18];
+  for(let i=0;i<V.length;i+=3)for(let k=0;k<3;k++){mn[k]=Math.min(mn[k],V[i+k]);mx[k]=Math.max(mx[k],V[i+k]);}
+  const dim=Math.max(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]),tol=Math.max(0.05,dim*0.002);
+  const bins=new Map();
+  for(let t=0;t<nT;t++){
+    const a=F[3*t]*3,b=F[3*t+1]*3,c=F[3*t+2]*3;
+    const ux=V[b]-V[a],uy=V[b+1]-V[a+1],uz=V[b+2]-V[a+2],vx=V[c]-V[a],vy=V[c+1]-V[a+1],vz=V[c+2]-V[a+2];
+    const nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx,l=Math.hypot(nx,ny,nz);
+    if(l<1e-12)continue;
+    Ar[t]=l/2;N[3*t]=nx/l;N[3*t+1]=ny/l;N[3*t+2]=nz/l;
+    const key=Math.round(N[3*t]*20)+','+Math.round(N[3*t+1]*20)+','+Math.round(N[3*t+2]*20);
+    let e=bins.get(key);if(!e){e={s:[0,0,0],area:0};bins.set(key,e);}
+    e.s[0]+=N[3*t]*Ar[t];e.s[1]+=N[3*t+1]*Ar[t];e.s[2]+=N[3*t+2]*Ar[t];e.area+=Ar[t];
+  }
+  const top=[...bins.values()].sort((p,q)=>q.area-p.area).slice(0,60),cands=[];
+  for(const e of top){const l=Math.hypot(e.s[0],e.s[1],e.s[2])||1,d=[e.s[0]/l,e.s[1]/l,e.s[2]/l];cands.push(d,[-d[0],-d[1],-d[2]]);}
+  if(!cands.length)return {area:0};
+  let best=null;
+  for(const d of cands){
+    let m=1e18;for(let i=0;i<V.length;i+=3)m=Math.min(m,V[i]*d[0]+V[i+1]*d[1]+V[i+2]*d[2]);
+    let area=0;
+    for(let t=0;t<nT;t++){
+      if(!Ar[t]||Math.abs(N[3*t]*d[0]+N[3*t+1]*d[1]+N[3*t+2]*d[2])<0.9962)continue;
+      let ok=true;
+      for(let k=0;k<3;k++){const v=F[3*t+k]*3;if(V[v]*d[0]+V[v+1]*d[1]+V[v+2]*d[2]-m>tol){ok=false;break;}}
+      if(ok)area+=Ar[t];
+    }
+    if(!best||area>best.area)best={d,area};
+  }
+  if(best.area<1)best={d:cands[0],area:0}; // aucune face plane franche : face la plus grande
+  rotateToDown(best.d);
+  return best;
+}
 function working(){
   const s=(+$('scale').value||100)/100, W=new Float64Array(baseV.length);
   for(let i=0;i<W.length;i++)W[i]=baseV[i]*s;
@@ -324,6 +410,58 @@ function tabsFromLoops(loops,z0,tabW,bMin=-Infinity){
   return tabs;
 }
 
+/* ---------------- Rangement des pièces sur les planches (MaxRects) ---------------- */
+class MaxRectsBin{
+  constructor(w,h){this.w=w;this.h=h;this.free=[{x:0,y:0,w,h}];this.placements=[];this.area=0;}
+  place(it,gap,allowRot){
+    let best=null;
+    const opts=[[it.w+gap,it.h+gap,false]];
+    if(allowRot&&Math.abs(it.w-it.h)>1e-6)opts.push([it.h+gap,it.w+gap,true]);
+    for(const f of this.free)for(const [w,h,rot] of opts){
+      if(w<=f.w+1e-9&&h<=f.h+1e-9){
+        const sh=Math.min(f.w-w,f.h-h),lg=Math.max(f.w-w,f.h-h);
+        if(!best||sh<best.sh-1e-9||(Math.abs(sh-best.sh)<1e-9&&lg<best.lg))best={x:f.x,y:f.y,w,h,rot,sh,lg};
+      }
+    }
+    if(!best)return false;
+    const u=best,nf=[];
+    for(const f of this.free){
+      if(u.x>=f.x+f.w||u.x+u.w<=f.x||u.y>=f.y+f.h||u.y+u.h<=f.y){nf.push(f);continue;}
+      if(u.x>f.x)nf.push({x:f.x,y:f.y,w:u.x-f.x,h:f.h});
+      if(u.x+u.w<f.x+f.w)nf.push({x:u.x+u.w,y:f.y,w:f.x+f.w-u.x-u.w,h:f.h});
+      if(u.y>f.y)nf.push({x:f.x,y:f.y,w:f.w,h:u.y-f.y});
+      if(u.y+u.h<f.y+f.h)nf.push({x:f.x,y:u.y+u.h,w:f.w,h:f.y+f.h-u.y-u.h});
+    }
+    const big=nf.filter(r=>r.w>1e-6&&r.h>1e-6);
+    this.free=big.filter((a,i)=>!big.some((b,j)=>{
+      if(j===i)return false;
+      const inside=b.x<=a.x+1e-9&&b.y<=a.y+1e-9&&b.x+b.w>=a.x+a.w-1e-9&&b.y+b.h>=a.y+a.h-1e-9;
+      const same=a.x===b.x&&a.y===b.y&&a.w===b.w&&a.h===b.h;
+      return inside&&(!same||j<i);
+    }));
+    this.placements.push({it,x:best.x,y:best.y,rot:best.rot});this.area+=it.w*it.h;
+    return true;
+  }
+}
+function packItems(items,W,H,margin,gap,allowRot){
+  const BW=W-2*margin+gap,BH=H-2*margin+gap;
+  const fits=it=>(it.w+gap<=BW+1e-9&&it.h+gap<=BH+1e-9)||(allowRot&&it.h+gap<=BW+1e-9&&it.w+gap<=BH+1e-9);
+  const ok=items.filter(fits),oversize=items.filter(i=>!fits(i));
+  const orders=[(a,b)=>b.w*b.h-a.w*a.h,(a,b)=>Math.max(b.w,b.h)-Math.max(a.w,a.h),(a,b)=>b.h-a.h,(a,b)=>b.w-a.w];
+  let best=null;
+  for(const cmp of orders){
+    const bins=[];
+    for(const it of [...ok].sort(cmp)){
+      let placed=false;
+      for(const b of bins)if(b.place(it,gap,allowRot)){placed=true;break;}
+      if(!placed){const b=new MaxRectsBin(BW,BH);b.place(it,gap,allowRot);bins.push(b);}
+    }
+    const last=bins.length?bins[bins.length-1].area:0;
+    if(!best||bins.length<best.bins.length||(bins.length===best.bins.length&&last<best.last))best={bins,last};
+  }
+  return {bins:best?best.bins:[],oversize};
+}
+
 function generate(){
   if(!baseV){msg('','Importe d\'abord un modèle.');return;}
   const t=+$('t').value,N=Math.max(1,Math.round(+$('n').value)),plateT=+$('pt').value,tabW=+$('tw').value,
@@ -396,53 +534,78 @@ function generate(){
   }
 
   // SVG
-  const showL=$('lbl').checked,fmt=v=>v.toFixed(3);
-  const items=[];
+  const showL=$('lbl').checked,showP=$('lblPlate').checked,fmt=v=>v.toFixed(3);
   const plateW=pX1-pX0,plateH=pY1-pY0;
   const sx=x=>x-pX0,sy=y=>pY1-y; // vue de dessus (Y vers le haut)
   let pin=`<path d="M0 0H${fmt(plateW)}V${fmt(plateH)}H0Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
   for(const s of slots){
     pin+=`<path d="${s.pts.map((q,k)=>(k?'L':'M')+fmt(sx(q[0]))+' '+fmt(sy(q[1]))).join('')}Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
   }
-  if(showL){
+  if(showP){
     const seen=new Set();
     for(const s of slots){if(seen.has(s.n))continue;seen.add(s.n);
       const q=s.pts[1];
       pin+=`<text x="${fmt(sx(q[0]))}" y="${fmt(sy(q[1]))}" font-size="2.5" fill="#0000ff" font-family="sans-serif">${s.n}</text>`;}
   }
-  const plate={w:plateW,h:plateH,inner:pin};
-  const pieceItems=[];
+  const plate={kind:'plate',w:plateW,h:plateH,inner:pin,name:'plateau'};
+  const pieceItems=[];let smallLbl=0;
   for(const p of valid){
     let x0=1e18,x1=-1e18,z0=1e18,z1=-1e18;
     for(const poly of p.geom)for(const r of poly)for(const q of r){x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);z0=Math.min(z0,q[1]);z1=Math.max(z1,q[1]);}
-    const w=x1-x0,h=z1-z0,extra=showL?6:0;
+    const w=x1-x0,h=z1-z0;
     let d='';
     for(const poly of p.geom)for(const r of poly){
       r.forEach((q,k)=>{d+=(k?'L':'M')+fmt(q[0]-x0)+' '+fmt(z1-q[1]);});d+='Z';
     }
     let inner=`<path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
-    if(showL)inner+=`<text x="0" y="${fmt(h+4.5)}" font-size="3.5" fill="#0000ff" font-family="sans-serif">${p.i+1}</text>`;
-    pieceItems.push({n:p.i+1,w,h:h+extra,inner});
+    if(showL&&p.tabs.length){ // le numéro est gravé sur l'ergot, dans la partie qui entre dans la plaque (donc cachée)
+      let tb=p.tabs[0];for(const q of p.tabs)if(q[1]-q[0]>tb[1]-tb[0])tb=q;
+      const txt=String(p.i+1),fs=Math.min(plateT*0.7,(tb[1]-tb[0])*0.9/(0.62*txt.length));
+      if(fs<1.2)smallLbl++;
+      inner+=`<text x="${fmt((tb[0]+tb[1])/2-x0)}" y="${fmt(z1+plateT/2+fs*0.36)}" font-size="${fs.toFixed(2)}" text-anchor="middle" fill="#0000ff" font-family="sans-serif">${txt}</text>`;
+    }
+    pieceItems.push({kind:'piece',n:p.i+1,w,h,inner});
   }
+  if(smallLbl)warns.push(`${smallLbl} numéro(s) gravé(s) très petit(s) (< 1,2 mm) sur l'ergot : augmente l'épaisseur du plateau ou la largeur d'ergot.`);
   const wrap=(inner,w,h)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${fmt(w)}mm" height="${fmt(h)}mm" viewBox="0 0 ${fmt(w)} ${fmt(h)}">${inner}</svg>`;
-  const sheetW=+$('sheetW').value||600,gap=5;
-  const layoutItems=[plate,...pieceItems];
-  let x=gap,y=gap,rowH=0,g='';
-  for(const it of layoutItems){
-    if(x+it.w+gap>sheetW&&x>gap){x=gap;y+=rowH+gap;rowH=0;}
-    g+=`<g transform="translate(${fmt(x)} ${fmt(y)})">${it.inner}</g>`;
-    x+=it.w+gap;rowH=Math.max(rowH,it.h);
+
+  // Rangement sur les planches
+  const SW=+$('sheetW').value||210,SH=+$('sheetH').value||297,sm=Math.max(0,+$('shMar').value||0),sg=Math.max(0,+$('shGap').value||0),allowRot=$('shRot').checked;
+  const tStr=v=>String(+v.toFixed(2));
+  const sameMat=Math.abs(plateT-t)<0.01;
+  const groups=sameMat?[{tag:`bois${tStr(t)}mm`,label:`bois ${tStr(t)} mm`,items:[plate,...pieceItems]}]
+    :[{tag:`bois${tStr(t)}mm`,label:`bois ${tStr(t)} mm`,items:pieceItems},{tag:`plateau${tStr(plateT)}mm`,label:`plateau ${tStr(plateT)} mm`,items:[plate]}];
+  const sheets=[];
+  for(const g of groups){
+    const {bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot);
+    for(const b of bins)sheets.push({g,W:SW,H:SH,pl:b.placements});
+    for(const it of oversize){
+      warns.push(`${it.kind==='plate'?'Le plateau':'La pièce '+it.n} (${it.w.toFixed(0)} × ${it.h.toFixed(0)} mm) dépasse le support ${SW} × ${SH} mm : exporté seul sur une planche plus grande.`);
+      sheets.push({g,W:it.w+2*sm,H:it.h+2*sm,pl:[{it,x:0,y:0,rot:false}]});
+    }
   }
-  const sheetH=y+rowH+gap;
-  const files={};
-  files[`${baseName}_plateau.svg`]=wrap(plate.inner,plate.w,plate.h);
-  for(const it of pieceItems)files[`${baseName}_piece_${String(it.n).padStart(2,'0')}.svg`]=wrap(it.inner,it.w,it.h);
-  files[`${baseName}_planche.svg`]=wrap(g,Math.max(sheetW,x),sheetH);
-  result={files,sheet:files[`${baseName}_planche.svg`],plate:files[`${baseName}_plateau.svg`],pieces,slots,t,plateT,
-          bounds:{pX0,pX1,pY0,pY1},mn,mx};
-  $('view2d').innerHTML=result.sheet;
+  const files={},sheetFiles=[];
+  sheets.forEach((sh,i)=>{
+    let body='';
+    for(const q of sh.pl){
+      const X=sm+q.x,Y=sm+q.y;
+      body+=q.rot?`<g transform="translate(${fmt(X+q.it.h)} ${fmt(Y)}) rotate(90)">${q.it.inner}</g>`:`<g transform="translate(${fmt(X)} ${fmt(Y)})">${q.it.inner}</g>`;
+    }
+    const svg=wrap(body,sh.W,sh.H);
+    const name=`${baseName}_planche_${String(i+1).padStart(2,'0')}_${sh.g.tag}.svg`;
+    const nums=sh.pl.filter(q=>q.it.kind==='piece').map(q=>q.it.n).sort((a,b)=>a-b);
+    const hasPlate=sh.pl.some(q=>q.it.kind==='plate');
+    const desc=`Planche ${i+1}/${sheets.length} · ${sh.W.toFixed(0)}×${sh.H.toFixed(0)} mm · ${sh.g.label} · `+(hasPlate?'plateau':'')+(hasPlate&&nums.length?' + ':'')+(nums.length?`${nums.length} pièce${nums.length>1?'s':''} (n° ${nums.length>8?nums[0]+'…'+nums[nums.length-1]:nums.join(', ')})`:'');
+    files['planches/'+name]=svg;sheetFiles.push({name,svg,desc});
+  });
+  files[`pieces_individuelles/${baseName}_plateau.svg`]=wrap(plate.inner,plate.w,plate.h);
+  for(const it of pieceItems)files[`pieces_individuelles/${baseName}_piece_${String(it.n).padStart(2,'0')}.svg`]=wrap(it.inner,it.w,it.h);
+  result={files,sheets:sheetFiles,pieces,slots,t,plateT,bounds:{pX0,pX1,pY0,pY1},mn,mx};
+  $('view2d').innerHTML=sheetFiles.map(f=>`<div class="sheetBox"><div class="cap">${f.desc}</div>${f.svg}</div>`).join('');
+  const list=$('sheetList');list.innerHTML='';
+  for(const f of sheetFiles){const b=document.createElement('button');b.textContent='⬇ '+f.desc;b.onclick=()=>download(f.name,f.svg,'image/svg+xml');list.appendChild(b);}
   buildPreview();
-  msg(`Modèle : ${(mx[0]-mn[0]).toFixed(1)} × ${(mx[1]-mn[1]).toFixed(1)} × ${(mx[2]-mn[2]).toFixed(1)} mm\n${valid.length} pièces, ${slots.length} fentes\n${infoStep}\nPlateau : ${plateW.toFixed(1)} × ${plateH.toFixed(1)} mm\nTrait rouge = découpe, bleu = repère (à ignorer ou graver).`,warns.join('\n'));
+  msg(`Modèle : ${(mx[0]-mn[0]).toFixed(1)} × ${(mx[1]-mn[1]).toFixed(1)} × ${(mx[2]-mn[2]).toFixed(1)} mm\n${valid.length} pièces, ${slots.length} fentes\n${infoStep}\nPlateau : ${plateW.toFixed(1)} × ${plateH.toFixed(1)} mm\n${sheets.length} planche${sheets.length>1?'s':''} de ${SW} × ${SH} mm (placement par boîtes englobantes).\nTrait rouge = découpe, bleu = numéro (à graver sur l'ergot).`,warns.join('\n'));
 }
 function msg(i,w){$('info').textContent=i;$('warn').textContent=w;}
 
@@ -481,6 +644,8 @@ function refreshModel(refit){
   g.computeBoundingBox();const bb=g.boundingBox,size=new THREE.Vector3();bb.getSize(size);
   $('info').textContent=`Modèle : ${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm (${F.length/3} triangles)`;
   clearPieces();
+  result=null;$('sheetList').innerHTML='';
+  if(realMode){realMode=false;applyMode();}
   if(refit){
     const r=Math.max(size.x,size.y,size.z);
     controls.target.set(0,0,size.z/2);
@@ -732,7 +897,23 @@ function exportSTL(){
   }
   download(lastGen.name+'.stl',buf,'model/stl');
 }
+function symOf(shape,n){return ({circle:1,square:4,triangle:3,polygon:n,star:n,flower:n,heart:1,draw:1})[shape]||1;}
+function updateTwistOptions(){
+  const sel=$('gTw'),shape=$('gShape').value,n=Math.max(3,Math.round(+$('gN').value||5)),prev=+sel.value||0;
+  sel.innerHTML='';
+  const add=(v,txt)=>{const o=document.createElement('option');o.value=String(v);o.textContent=txt;sel.appendChild(o);};
+  if(shape==='circle'){add(0,'0° (rond)');return;}
+  const step=360/symOf(shape,n),cnt=Math.floor(720/step+1e-9);
+  let bestV=0,bestD=1e9;
+  for(let k=0;k<=cnt;k++){
+    const a=+(k*step).toFixed(4);
+    add(a,k===0?'0° (aucun)':(a%360===0?`${a}° (${a/360} tour${a>360?'s':''})`:`${+a.toFixed(2)}°`));
+    if(Math.abs(a-prev)<bestD){bestD=Math.abs(a-prev);bestV=a;}
+  }
+  sel.value=String(bestV);
+}
 function updateGenUI(){
+  updateTwistOptions();
   const s=$('gShape').value;
   $('gNRow').style.display=['polygon','star','flower'].includes(s)?'flex':'none';
   $('gLRow').style.display=['star','flower'].includes(s)?'flex':'none';
@@ -796,8 +977,7 @@ $('dClear').onclick=()=>{dPts=[];dClosed=false;$('dMsg').textContent='';dRedraw(
 $('dCancel').onclick=()=>{closeDraw();if(!drawnPoly&&$('gShape').value==='draw'){$('gShape').value='star';updateGenUI();}};
 $('gDraw').onclick=openDraw;
 addEventListener('keydown',e=>{if(e.key==='Escape'&&$('drawModal').style.display==='flex')$('dCancel').click();});
-$('gTw').oninput=()=>{$('gTwR').value=$('gTw').value;};
-$('gTwR').oninput=()=>{$('gTw').value=$('gTwR').value;};
+$('gN').oninput=updateTwistOptions;
 $('gMake').onclick=makeTorus;
 $('gStl').onclick=exportSTL;
 
@@ -823,10 +1003,42 @@ $('demo').onclick=()=>{
   setMesh(g.attributes.position.array,'exemple');
 };
 document.querySelectorAll('[data-rot]').forEach(b=>b.onclick=()=>{if(!baseV)return;rotate(b.dataset.rot);refreshModel(true);});
+$('rotApply').onclick=()=>{
+  if(!baseV)return;
+  rotXYZ(+$('rx').value||0,+$('ry').value||0,+$('rz').value||0);
+  $('rx').value=$('ry').value=$('rz').value=0;refreshModel(true);
+};
+$('flatAuto').onclick=()=>{
+  if(!baseV){msg('','Importe d\'abord un modèle.');return;}
+  setPick(false);
+  const r=autoFlat();refreshModel(true);
+  msg($('info').textContent,r.area>0?`Posé à plat sur une face de ${r.area.toFixed(0)} mm². Si ce n'est pas la bonne, utilise « Choisir une face ».`:'Aucune face plane franche trouvée : pose approximative. Utilise « Choisir une face » ou la rotation libre.');
+};
+let pickMode=false;
+function setPick(on){
+  pickMode=on;$('flatPick').classList.toggle('on',on);renderer.domElement.style.cursor=on?'crosshair':'';
+  $('flatHint').textContent=on?'Clique sur la face du modèle qui doit reposer sur le plateau (un simple clic, sans faire glisser).':'Le modèle doit reposer à plat (le bas touche le plateau). « Poser à plat » cherche la plus grande face plane ; « Choisir une face » te laisse cliquer la face à poser sur le sol.';
+}
+$('flatPick').onclick=()=>{if(!baseV){msg('','Importe d\'abord un modèle.');return;}show('3d');setPick(!pickMode);};
+const rayc=new THREE.Raycaster(),ndc=new THREE.Vector2();let downXY=null;
+renderer.domElement.addEventListener('pointerdown',e=>{downXY=[e.clientX,e.clientY];});
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(!pickMode||!downXY||!modelMesh||!modelMesh.visible)return;
+  if(Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1])>4)return;
+  const r=renderer.domElement.getBoundingClientRect();
+  ndc.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);
+  rayc.setFromCamera(ndc,camera);
+  const hit=rayc.intersectObject(modelMesh,false)[0];
+  if(!hit)return;
+  const n=hit.face.normal.clone();if(n.dot(rayc.ray.direction)>0)n.negate();
+  setPick(false);rotateToDown([n.x,n.y,n.z]);refreshModel(true);
+});
 $('scale').onchange=()=>{if(baseV)refreshModel(false);};
 $('gen').onclick=generate;
-$('dlSheet').onclick=()=>result?download(`${baseName}_planche.svg`,result.sheet,'image/svg+xml'):msg('','Génère d\'abord.');
-$('dlPlate').onclick=()=>result?download(`${baseName}_plateau.svg`,result.plate,'image/svg+xml'):msg('','Génère d\'abord.');
+$('sheetFmt').onchange=()=>{const v=$('sheetFmt').value;if(v==='custom')return;const [w,h]=v.split('x');$('sheetW').value=w;$('sheetH').value=h;};
+const fmtSync=()=>{const k=$('sheetW').value+'x'+$('sheetH').value;$('sheetFmt').value=[...$('sheetFmt').options].some(o=>o.value===k)?k:'custom';};
+$('sheetW').oninput=fmtSync;$('sheetH').oninput=fmtSync;
+$('sheetSwap').onclick=()=>{const w=$('sheetW').value;$('sheetW').value=$('sheetH').value;$('sheetH').value=w;fmtSync();};
 $('dlZip').onclick=async()=>{
   if(!result){msg('','Génère d\'abord.');return;}
   const z=new JSZip();for(const [n,s] of Object.entries(result.files))z.file(n,s);
