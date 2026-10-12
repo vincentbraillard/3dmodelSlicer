@@ -203,8 +203,9 @@
   .spin{width:54px;height:54px;border-radius:50%;border:6px solid var(--ink);border-top-color:var(--tomato);animation:spin .8s linear infinite}
   .modal{position:fixed;inset:0;z-index:80;background:rgba(27,35,64,.55);display:none;align-items:center;justify-content:center;padding:14px}
   .modal.on{display:flex}
+  #dSvgCtl{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}#dSvgCtl>p,#dSvgCtl>.btn{grid-column:1/-1}#dSvgCtl .fld{margin:4px 0}#dSvgCtl .ctl{gap:6px}#dSvgCtl .num{width:62px}
   .modal .box{background:#fff;border:2px solid var(--ink);border-radius:24px;padding:20px;max-width:96vw;max-height:94vh;overflow:auto;box-shadow:8px 8px 0 var(--ink)}
-  #dCanvas{touch-action:none;width:min(84vw,400px);height:auto;background:#fff;border:2px solid var(--ink);border-radius:16px;cursor:crosshair;display:block;background:radial-gradient(#d6dcf7 1.2px,transparent 1.3px) 0 0/20px 20px,#fff}
+  #dCanvas{touch-action:none;width:min(84vw,400px,calc(100vh - 430px));min-width:220px;height:auto;aspect-ratio:1;background:#fff;border:2px solid var(--ink);border-radius:16px;cursor:crosshair;display:block;background:radial-gradient(#d6dcf7 1.2px,transparent 1.3px) 0 0/20px 20px,#fff}
   .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,30px);opacity:0;z-index:100;background:var(--ink);color:#fff;border-radius:999px;padding:11px 20px;font-weight:700;pointer-events:none;transition:.3s}
   .toast.on{transform:translate(-50%,0);opacity:1}
   .confetti{position:fixed;top:-12px;width:10px;height:14px;z-index:120;pointer-events:none;border:2px solid var(--ink);animation:fall 1.7s cubic-bezier(.3,.6,.6,1) forwards}
@@ -240,6 +241,7 @@
   <symbol id="i-saveas" viewBox="0 0 24 24"><path d="M5 4h11l3 3v4M5 4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h6"/><path d="M8 4v5h7V4"/><path d="m14 19 5-5 2 2-5 5h-2z"/></symbol>
   <symbol id="i-oval" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9.5" ry="6"/></symbol>
   <symbol id="i-contour" viewBox="0 0 24 24"><path d="M12 3.5c3 0 3.5 3 6 4s3.5 3 2.5 6-3.5 4-6 5.5-4 .5-6.5-1S3 14 4 10.5 9 3.5 12 3.5z"/><path d="M12 8c2 0 3 1.5 4 2.5s0 3.5-2 4.5-4 0-5-1.5.5-3.5 1.5-4.5z" stroke-dasharray="2 2"/></symbol>
+  <symbol id="i-svg" viewBox="0 0 24 24"><path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M8.5 16c1.5-3 3-3 3.5-1s2 1 3-1.5"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
   <symbol id="i-wand" viewBox="0 0 24 24"><path d="m4 20 10.5-10.5"/><path d="m13 5.5 5.5 5.5"/><path d="M18 2.5v3M16.5 4h3M6 3v2.4M4.8 4.2h2.4M20.5 14v2.4M19.3 15.2h2.4"/></symbol>
   <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6.5" r="2.6"/><circle cx="6" cy="17.5" r="2.6"/><path d="m8 8.2 12 9.8M8 15.8 20 6"/></symbol>
@@ -375,13 +377,14 @@
             <button class="tile" data-sel="gShape" data-val="flower" style="--c:var(--pink)"><svg class="ic"><use href="#i-flower"/></svg>Fleur</button>
             <button class="tile" data-sel="gShape" data-val="heart" style="--c:#e8344f"><svg class="ic"><use href="#i-heart"/></svg>Cœur</button>
             <button class="tile" data-sel="gShape" data-val="draw" style="--c:var(--ink)"><svg class="ic"><use href="#i-pencil"/></svg>À la main</button>
+            <button class="tile" data-sel="gShape" data-val="svg" style="--c:#ff8a00"><svg class="ic"><use href="#i-svg"/></svg>Forme SVG</button>
           </div>
           <select id="gShape" hidden>
             <option value="star" selected>Étoile</option><option value="circle">Rond</option><option value="square">Carré</option><option value="triangle">Triangle</option>
-            <option value="polygon">Polygone</option><option value="flower">Fleur</option><option value="heart">Cœur</option><option value="draw">Dessin libre</option>
+            <option value="polygon">Polygone</option><option value="flower">Fleur</option><option value="heart">Cœur</option><option value="draw">Dessin libre</option><option value="svg">Forme SVG</option>
           </select>
           <div id="gDrawRow" class="row" hidden style="margin:8px 0">
-            <button class="btn sm" id="gDraw"><svg class="ic"><use href="#i-pencil"/></svg>Dessiner ma forme</button>
+            <button class="btn sm" id="gDraw"><svg class="ic"><use href="#i-pencil"/></svg>Modifier ma forme</button>
             <canvas id="gPrev" width="64" height="64" style="border:2px solid var(--ink);border-radius:12px;background:#fff"></canvas>
           </div>
 
@@ -534,11 +537,20 @@
 <!-- dessin à la main -->
 <div id="drawModal" class="modal">
   <div class="box">
-    <h1 class="h" style="font-size:22px">Dessine ta forme</h1>
-    <p class="s" style="max-width:400px">Trace-la d'un seul geste, sans lever le doigt : elle se ferme toute seule. Le cercle pointillé marque la taille de la section du tore.</p>
+    <h1 class="h" style="font-size:22px">Dessine ou importe ta forme</h1>
+    <p class="s" style="max-width:400px">Trace-la d'un seul geste, sans lever le doigt : elle se ferme toute seule. Ou importe un fichier SVG. Le cercle pointillé marque la taille de la section du tore.</p>
     <canvas id="dCanvas" width="400" height="400"></canvas>
     <p id="dMsg" class="s" style="color:#c2260c;margin:8px 0 0;min-height:20px"></p>
-    <div class="row" style="margin-top:6px"><button class="btn sm" id="dClear">Effacer</button><button class="btn sm" id="dCancel">Annuler</button><button class="btn cta" id="dOk" style="margin-left:auto">Valider</button></div>
+    <div class="row" style="margin-bottom:8px"><button class="btn sm" id="dSvg"><svg class="ic"><use href="#i-svg"/></svg>Importer un SVG…</button><input type="file" id="dSvgFile" accept=".svg,image/svg+xml" class="sr"></div>
+    <div id="dSvgCtl" hidden style="max-width:440px">
+      <p class="s" style="margin:0 0 6px">Place ta forme : seul le contour extérieur est gardé.</p>
+      <div class="fld"><div class="lab">Taille</div><div class="ctl"><input type="range" data-pair="dsS" min="10" max="300" step="1"><input class="num sm" type="number" id="dsS" value="100" step="1"><span class="u">%</span></div></div>
+      <div class="fld"><div class="lab">Horizontal</div><div class="ctl"><input type="range" data-pair="dsX" min="-100" max="100" step="1"><input class="num sm" type="number" id="dsX" value="0" step="1"><span class="u">%</span></div></div>
+      <div class="fld"><div class="lab">Vertical</div><div class="ctl"><input type="range" data-pair="dsY" min="-100" max="100" step="1"><input class="num sm" type="number" id="dsY" value="0" step="1"><span class="u">%</span></div></div>
+      <div class="fld"><div class="lab">Rotation</div><div class="ctl"><input type="range" data-pair="dsR" min="-180" max="180" step="1"><input class="num sm" type="number" id="dsR" value="0" step="1"><span class="u">°</span></div></div>
+      <button class="btn sm" id="dsReset">Remettre à zéro</button>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn sm" id="dClear">Effacer</button><button class="btn sm" id="dCancel">Annuler</button><button class="btn cta" id="dOk" style="margin-left:auto">Valider</button></div>
   </div>
 </div>
 
@@ -1228,7 +1240,7 @@ function makeProfile(shape,n,Lpct,roundPct){
   if(shape==='square'){sym=4;poly=[0,1,2,3].map(k=>[Math.cos(Math.PI/4+k*Math.PI/2),Math.sin(Math.PI/4+k*Math.PI/2)]);}
   else if(shape==='triangle'){sym=3;poly=[0,1,2].map(k=>[Math.cos(up+k*TAU/3),Math.sin(up+k*TAU/3)]);}
   else if(shape==='polygon'){sym=n;poly=[...Array(n).keys()].map(k=>[Math.cos(up+k*TAU/n),Math.sin(up+k*TAU/n)]);}
-  else if(shape==='draw'){
+  else if(shape==='draw'||shape==='svg'){
     sym=1;
     const xs=drawnPoly.map(p=>p[0]),ys=drawnPoly.map(p=>p[1]);
     const cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
@@ -1262,7 +1274,7 @@ function makeTorus(){
         twIn=+$('gTw').value||0,sink=Math.max(0,+$('gSink').value||0),
         Smax=Math.max(0.1,(+$('gS').value||100)/100),cyc=Math.max(1,Math.round(+$('gCyc').value||1));
   if(!(Do>Di&&Di>0)){msg('','Le diamètre extérieur doit être supérieur au diamètre intérieur.');return;}
-  if(shape==='draw'&&!drawnPoly){msg('','Dessine d\'abord une forme avec le bouton « Dessiner à la main ».');return;}
+  if((shape==='draw'||shape==='svg')&&!drawnPoly){msg('','Dessine d\'abord une forme avec le bouton « Dessiner à la main ».');return;}
   const rho=(Do-Di)/4,Rc=(Do+Di)/4;
   const {pts,sym}=makeProfile(shape,n,L,rd);
   const nv=pts.length;
@@ -1348,11 +1360,11 @@ function updateGenUI(){
   $('gNRow').hidden=!['polygon','star','flower'].includes(s);
   $('gLRow').hidden=!['star','flower'].includes(s);
   $('gRRow').hidden=s==='circle';
-  $('gDrawRow').hidden=s!=='draw';
+  $('gDrawRow').hidden=!(s==='draw'||s==='svg');
   $('gNLab').textContent=s==='polygon'?'Nombre de côtés':(s==='flower'?'Nombre de pétales':'Nombre de pointes');
   syncTiles('gShape');
 }
-$('gShape').onchange=()=>{updateGenUI();if($('gShape').value==='draw'&&!drawnPoly)openDraw();};updateGenUI();
+$('gShape').onchange=()=>{updateGenUI();const v=$('gShape').value;if((v==='draw'||v==='svg')&&!drawnPoly)openDraw(v==='svg');};updateGenUI();
 
 /* ---- Dessin libre (popup) ---- */
 const dC=$('dCanvas'),dctx=dC.getContext('2d'),DG=160,DS=400;
@@ -1378,7 +1390,7 @@ dC.onpointermove=e=>{
 };
 const dEnd=()=>{if(!dDrawing)return;dDrawing=false;dClosed=dPts.length>=8;dRedraw();};
 dC.onpointerup=dEnd;dC.onpointercancel=dEnd;
-function openDraw(){$('drawModal').classList.add('on');dRedraw();}
+function openDraw(auto){$('drawModal').classList.add('on');dRedraw();if(auto)$('dSvgFile').click();}
 function closeDraw(){$('drawModal').classList.remove('on');}
 function drawPreview(){
   const c=$('gPrev'),x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
@@ -1403,11 +1415,11 @@ $('dOk').onclick=()=>{
   if(!best||bestA<0.02){$('dMsg').textContent='Forme trop petite ou invalide, recommence.';return;}
   drawnPoly=best.slice(0,-1);
   drawPreview();closeDraw();
-  $('gShape').value='draw';updateGenUI();scheduleLive(0);
+  if(!['draw','svg'].includes($('gShape').value))$('gShape').value='draw';updateGenUI();scheduleLive(0);
 };
 $('dClear').onclick=()=>{dPts=[];dClosed=false;$('dMsg').textContent='';dRedraw();};
-$('dCancel').onclick=()=>{closeDraw();if(!drawnPoly&&$('gShape').value==='draw'){$('gShape').value='star';updateGenUI();scheduleLive(0);}};
-$('gDraw').onclick=openDraw;
+$('dCancel').onclick=()=>{closeDraw();if(!drawnPoly&&['draw','svg'].includes($('gShape').value)){$('gShape').value='star';updateGenUI();scheduleLive(0);}};
+$('gDraw').onclick=()=>openDraw(false);
 addEventListener('keydown',e=>{if(e.key==='Escape'&&$('drawModal').classList.contains('on'))$('dCancel').click();});
 $('gN').oninput=updateTwistOptions;
 $('gStl').onclick=exportSTL;
@@ -1660,6 +1672,72 @@ function plateGeometry(kind,V,Fx,slots,mar,fill){
   return contourPlate(tri2,mar,fill)||rect;
 }
 
+/* ---------------- Import d'une forme SVG dans la fenêtre de dessin ---------------- */
+let svgBase=null; // contour importé, normalisé (centré, rayon max = 1, y vers le haut)
+function svgToRing(text){
+  const doc=new DOMParser().parseFromString(text,'image/svg+xml');
+  if(doc.querySelector('parsererror')||doc.documentElement.localName!=='svg')throw new Error('ce fichier n\'est pas un SVG valide.');
+  const host=document.createElement('div');
+  host.style.cssText='position:absolute;left:-99999px;top:0;width:1000px;height:1000px;visibility:hidden;pointer-events:none';
+  host.appendChild(document.importNode(doc.documentElement,true));document.body.appendChild(host);
+  try{
+    const root=host.firstElementChild;
+    if(!root.getAttribute('viewBox')&&!root.getAttribute('width')){root.setAttribute('width','1000');root.setAttribute('height','1000');}
+    let bb;try{bb=root.getBBox();}catch(e){bb={width:1000,height:1000};}
+    const diag=Math.hypot(bb.width,bb.height)||1000,step=diag/500;
+    const inv=root.getScreenCTM().inverse(),rings=[];
+    for(const el of root.querySelectorAll('path,rect,circle,ellipse,polygon,polyline')){
+      if(el.closest('defs,clipPath,mask,pattern,symbol,marker'))continue;
+      if(typeof el.getTotalLength!=='function')continue;
+      let len;try{len=el.getTotalLength();}catch(e){continue;}
+      if(!(len>0))continue;
+      const m=inv.multiply(el.getScreenCTM()),sc=Math.sqrt(Math.abs(m.a*m.d-m.b*m.c))||1;
+      const n=Math.min(6000,Math.max(24,Math.ceil(len*sc/step)));
+      let cur=[],prev=null;
+      for(let k=0;k<=n;k++){
+        const q=el.getPointAtLength(len*k/n),x=m.a*q.x+m.c*q.y+m.e,y=m.b*q.x+m.d*q.y+m.f;
+        if(prev&&Math.hypot(x-prev[0],y-prev[1])>step*6){if(cur.length>=3)rings.push(cur);cur=[];}
+        cur.push([x,-y]);prev=[x,y];
+      }
+      if(cur.length>=3)rings.push(cur);
+    }
+    if(!rings.length)throw new Error('aucune forme trouvée dans ce SVG (le texte doit être converti en tracés).');
+    let best=null,bestA=0;
+    for(const poly of polygonClipping.union(...rings.map(r=>[[r.concat([r[0]])]]))){
+      const a=Math.abs(polyArea(poly[0]));if(a>bestA){bestA=a;best=poly[0];}
+    }
+    if(!best||bestA<=0)throw new Error('forme vide.');
+    let r=best.slice(0,-1);
+    r=r.length>600?resampleClosed(r,600):r;
+    const xs=r.map(p=>p[0]),ys=r.map(p=>p[1]),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
+    const R=Math.max(...r.map(p=>Math.hypot(p[0]-cx,p[1]-cy)))||1;
+    return r.map(p=>[(p[0]-cx)/R,(p[1]-cy)/R]);
+  }finally{host.remove();}
+}
+function svgApply(){
+  if(!svgBase)return;
+  const s=(+$('dsS').value||100)/100,ox=(+$('dsX').value||0)/100,oy=(+$('dsY').value||0)/100,a=(+$('dsR').value||0)*Math.PI/180,c=Math.cos(a),n=Math.sin(a);
+  dPts=svgBase.map(([x,y])=>{
+    const X=(x*c-y*n)*s+ox,Y=(x*n+y*c)*s+oy;
+    return [DS/2+X*DG,DS/2-Y*DG];
+  });
+  dClosed=true;$('dMsg').textContent='';dRedraw();
+}
+function svgReset(){['dsS','dsX','dsY','dsR'].forEach(id=>{$(id).value=id==='dsS'?100:0;});$$('#dSvgCtl input[type=range]').forEach(r=>{r.value=$(r.dataset.pair).value;});}
+function svgOff(){svgBase=null;$('dSvgCtl').hidden=true;}
+$('dSvg').onclick=()=>$('dSvgFile').click();
+$('dSvgFile').addEventListener('change',async()=>{
+  const f=$('dSvgFile').files[0];$('dSvgFile').value='';if(!f)return;
+  try{
+    svgBase=svgToRing(await f.text());svgReset();$('dSvgCtl').hidden=false;svgApply();
+  }catch(e){console.error(e);svgOff();$('dMsg').textContent='Import impossible : '+(e.message||e);}
+});
+$('dSvgCtl').addEventListener('input',svgApply);
+$('dsReset').onclick=()=>{svgReset();svgApply();};
+dC.addEventListener('pointerdown',svgOff);
+$('dClear').addEventListener('click',svgOff);
+$('dCancel').addEventListener('click',svgOff);
+
 /* ================= Assistant en 3 étapes ================= */
 const SHAPE_FR={star:'étoile',circle:'rond',square:'carré',triangle:'triangle',polygon:'polygone',flower:'fleur',heart:'cœur',draw:'dessin libre'};
 const AXIS_HELP={
@@ -1750,7 +1828,7 @@ function scheduleLive(ms=350){
   clearTimeout(liveTimer);
   liveTimer=setTimeout(()=>{
     if(mode!=='create'||step!==1)return;
-    if($('gShape').value==='draw'&&!drawnPoly)return;
+    if(['draw','svg'].includes($('gShape').value)&&!drawnPoly)return;
     makeTorus();
   },ms);
 }
