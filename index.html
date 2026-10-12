@@ -242,6 +242,8 @@
   <symbol id="i-oval" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9.5" ry="6"/></symbol>
   <symbol id="i-contour" viewBox="0 0 24 24"><path d="M12 3.5c3 0 3.5 3 6 4s3.5 3 2.5 6-3.5 4-6 5.5-4 .5-6.5-1S3 14 4 10.5 9 3.5 12 3.5z"/><path d="M12 8c2 0 3 1.5 4 2.5s0 3.5-2 4.5-4 0-5-1.5.5-3.5 1.5-4.5z" stroke-dasharray="2 2"/></symbol>
   <symbol id="i-svg" viewBox="0 0 24 24"><path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M8.5 16c1.5-3 3-3 3.5-1s2 1 3-1.5"/></symbol>
+  <symbol id="i-laser" viewBox="0 0 24 24"><path d="M12 3v8"/><path d="m9 8 3 3 3-3"/><path d="M4 15h16M7 19h10"/></symbol>
+  <symbol id="i-cnc" viewBox="0 0 24 24"><path d="M10 3h4v6l-1 4h-2l-1-4z"/><path d="M12 13v5"/><path d="M5 21h14"/><circle cx="12" cy="19" r="1.4"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
   <symbol id="i-wand" viewBox="0 0 24 24"><path d="m4 20 10.5-10.5"/><path d="m13 5.5 5.5 5.5"/><path d="M18 2.5v3M16.5 4h3M6 3v2.4M4.8 4.2h2.4M20.5 14v2.4M19.3 15.2h2.4"/></symbol>
   <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6.5" r="2.6"/><circle cx="6" cy="17.5" r="2.6"/><path d="m8 8.2 12 9.8M8 15.8 20 6"/></symbol>
@@ -428,6 +430,18 @@
         <select id="axis" hidden><option value="R">Autour du centre</option><option value="0">Sens X</option><option value="1">Sens Y</option></select>
         <p class="s" id="axisHelp"></p>
 
+        <div class="fld"><div class="lab">Machine de découpe <span class="tip" tabindex="0" data-tip="Le laser coupe des angles bien nets. Une fraiseuse CNC a une fraise ronde : elle arrondit les angles rentrants, et les fentes reçoivent de petits évidements dans les coins (os de chien) pour que les pièces rentrent.">?</span></div>
+          <select id="cutMode" hidden><option value="laser">laser</option><option value="cnc">cnc</option></select>
+          <div class="tiles t3" style="grid-template-columns:repeat(2,1fr)">
+            <button class="tile" data-sel="cutMode" data-val="laser" style="--c:var(--tomato)"><svg class="ic"><use href="#i-laser"/></svg>Laser</button>
+            <button class="tile" data-sel="cutMode" data-val="cnc" style="--c:var(--grape)"><svg class="ic"><use href="#i-cnc"/></svg>Fraiseuse CNC</button>
+          </div>
+          <div id="cncRow" hidden>
+            <div class="lab" style="margin-top:8px">Diamètre de la fraise</div>
+            <div class="ctl"><input class="num" type="number" id="cncD" value="2" min="0.5" step="0.1"><span class="u">mm</span></div>
+            <p class="s" id="cncHelp" style="margin-top:6px"></p>
+          </div>
+        </div>
         <div class="fld"><div class="lab">Épaisseur de ton bois <span class="tip" tabindex="0" data-tip="Mesure ton contreplaqué avec un pied à coulisse : les fentes de la plaque sont calculées sur cette valeur.">?</span></div>
           <div class="chips" id="woodChips">
             <button class="chip" data-for="t" data-val="2">2 mm</button><button class="chip" data-for="t" data-val="3">3 mm</button><button class="chip" data-for="t" data-val="4">4 mm</button><button class="chip" data-for="t" data-val="5">5 mm</button><button class="chip" data-for="t" data-val="6">6 mm</button>
@@ -799,7 +813,7 @@ function slicePlane(V,pl){
   }
   return {loops,open};
 }
-function tabsFromLoops(loops,z0,tabW,bMin=-Infinity){
+function tabsFromLoops(loops,z0,tabW,bMin=-Infinity,minTw=1.5){
   const ys=[];
   for(const l of loops)for(let j=0;j<l.length;j++){
     const p=l[j],q=l[(j+1)%l.length];
@@ -812,7 +826,7 @@ function tabsFromLoops(loops,z0,tabW,bMin=-Infinity){
     if(L<4)continue;
     const n=Math.max(1,Math.floor(L/(tabW*2.5)));
     const tw=Math.min(tabW,L/n-2);
-    if(tw<1.5)continue;
+    if(tw<minTw)continue;
     for(let k=0;k<n;k++){const yc=y1+(k+.5)*L/n;tabs.push([yc-tw/2,yc+tw/2]);}
   }
   return tabs;
@@ -898,6 +912,10 @@ function generate(){
     infoStep=`Écart entre pièces : ${spacing.toFixed(2)} mm (${(spacing-t).toFixed(2)} mm de vide)`;
     if(N>1&&spacing<t)warns.push(`Les pièces se chevauchent : pas ${spacing.toFixed(2)} mm < épaisseur ${t} mm. Réduis le nombre de pièces (max ≈ ${Math.floor((extent-t)/t)+1}).`);
   }
+  const cnc=$('cutMode').value==='cnc',cD=Math.max(0.1,+$('cncD').value||2),cr=cD/2;cncStats.clamped=0;
+  if(cnc&&cD>t+clr+1e-9){msg('','La fraise est trop grosse : les fentes de la plaque font '+(t+clr).toFixed(2)+' mm de large. Choisis une fraise de '+(t+clr).toFixed(2)+' mm au maximum.');return;}
+  const tabWe=cnc?Math.max(tabW,2.5*cD):tabW;
+  if(cnc&&tabWe>tabW)warns.push('Fraise CNC : les ergots sont élargis à '+tabWe.toFixed(1)+' mm pour que la fraise puisse creuser les fentes.');
   const pieces=[];let openTotal=0,noTab=0;
   const halfRect=[[[0,-1e5],[1e5,-1e5],[1e5,1e5],[0,1e5],[0,-1e5]]];
   for(const pl of planes){
@@ -908,10 +926,11 @@ function generate(){
     let geom=polygonClipping.xor(...loops.map(l=>[[l.concat([l[0]])]]));
     if(sink>0){geom=polygonClipping.intersection(geom,[[[-1e5,0],[1e5,0],[1e5,1e5],[-1e5,1e5],[-1e5,0]]]);if(!geom.length){pieces.push({i,pl,geom:null,tabs:[]});continue;}}
     if(radial){geom=polygonClipping.intersection(geom,halfRect);if(!geom.length){pieces.push({i,pl,geom:null,tabs:[]});continue;}}
-    const tabs=tabsFromLoops(loops,off,tabW,radial?0:-Infinity);
+    const tabs=tabsFromLoops(loops,off,tabWe,radial?0:-Infinity,cnc?2*cD:1.5);
     if(!tabs.length)noTab++;
     const rects=tabs.map(([a,b])=>[[[a,-plateT],[b,-plateT],[b,off],[a,off],[a,-plateT]]]);
     if(rects.length)geom=polygonClipping.union(geom,...rects);
+    if(cnc)geom=cncShape(geom,cr,tabs);
     pieces.push({i,pl,geom,tabs});
   }
   const valid=pieces.filter(p=>p.geom);
@@ -925,6 +944,7 @@ function generate(){
     if(p.bad.size)badPieces.push(p.i+1);
   }
   if(badComps)warns.push(`${badComps} élément(s) sans ergot ni contact avec la plaque (en rouge dans l'aperçu 3D), pièce(s) n° ${badPieces.join(', ')}. Augmente la « hauteur de scan » ou l'enfoncement, ou pose mieux le modèle.`);
+  if(cncStats.clamped)warns.push(cncStats.clamped+' angle(s) rentrant(s) très serré(s) : rayon plus petit que la fraise, à vérifier.');
   if(radial&&N>1){
     let rmin=1e18;
     for(const p of valid)for(const poly of p.geom)for(const r of poly)for(const q of r)rmin=Math.min(rmin,q[0]);
@@ -938,11 +958,12 @@ function generate(){
     for(const [a,b] of p.tabs){
       const r0=a-clr/2,r1=b+clr/2;
       const pt=(r,s)=>[ox+r*dx+s*nx,oy+r*dy+s*ny];
-      slots.push({n:p.i+1,pts:[pt(r0,-h),pt(r1,-h),pt(r1,h),pt(r0,h)]});
+      const sp=[pt(r0,-h),pt(r1,-h),pt(r1,h),pt(r0,h)];
+      slots.push({n:p.i+1,pts:sp,ring:cnc?dogboneSlot(sp,cr):sp});
     }
   }
 
-  const plateKind=$('plateShape').value,plateGeom=plateGeometry(plateKind,V,F,slots,mar,$('plateFill').checked);
+  const plateKind=$('plateShape').value,plateGeom0=plateGeometry(plateKind,V,F,slots,mar,$('plateFill').checked),plateGeom=cnc?cncRoundOutline(plateGeom0,cr):plateGeom0;
   let pX0=1e18,pX1=-1e18,pY0=1e18,pY1=-1e18;
   for(const poly of plateGeom)for(const q of poly[0]){pX0=Math.min(pX0,q[0]);pX1=Math.max(pX1,q[0]);pY0=Math.min(pY0,q[1]);pY1=Math.max(pY1,q[1]);}
   // Éléments à ranger : tracé de découpe (cut) et numéros (lbl) restent séparés pour pouvoir activer les numéros ensuite
@@ -952,7 +973,7 @@ function generate(){
   let pinCut='';
   for(const poly of plateGeom)for(const r of poly)pinCut+=`<path d="${r.slice(0,-1).map((q,k)=>(k?'L':'M')+fmt(sx(q[0]))+' '+fmt(sy(q[1]))).join('')}Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
   for(const s of slots){
-    pinCut+=`<path d="${s.pts.map((q,k)=>(k?'L':'M')+fmt(sx(q[0]))+' '+fmt(sy(q[1]))).join('')}Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
+    pinCut+=`<path d="${s.ring.map((q,k)=>(k?'L':'M')+fmt(sx(q[0]))+' '+fmt(sy(q[1]))).join('')}Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
   }
   let pinLbl='';
   {const seen=new Set();
@@ -1185,7 +1206,7 @@ function buildPreview(){
   // plateau
   const pip=(pt,ring)=>{let ins=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>pt[1])!==(b[1]>pt[1])&&pt[0]<(b[0]-a[0])*(pt[1]-a[1])/(b[1]-a[1])+a[0])ins=!ins;}return ins;};
   const plShapes=result.plateGeom.map(poly=>{const sh=new THREE.Shape(poly[0].slice(0,-1).map(v2));for(let i=1;i<poly.length;i++)sh.holes.push(new THREE.Path(poly[i].slice(0,-1).map(v2)));return {sh,ring:poly[0]};});
-  for(const s of result.slots){const host=plShapes.find(o=>pip(s.pts[0],o.ring))||plShapes[0];host.sh.holes.push(new THREE.Path(s.pts.map(v2)));}
+  for(const s of result.slots){const host=plShapes.find(o=>pip(s.pts[0],o.ring))||plShapes[0];host.sh.holes.push(new THREE.Path((s.ring||s.pts).map(v2)));}
   const pg=new THREE.ExtrudeGeometry(plShapes.map(o=>o.sh),{depth:plateT,bevelEnabled:false});pg.translate(0,0,-plateT);
   const pm=new THREE.Mesh(pg,real?[faceMat(),plateSide]:new THREE.MeshStandardMaterial({color:0xd6a96c,roughness:.85,side:THREE.DoubleSide}));
   pm.castShadow=pm.receiveShadow=real;
@@ -1738,6 +1759,83 @@ dC.addEventListener('pointerdown',svgOff);
 $('dClear').addEventListener('click',svgOff);
 $('dCancel').addEventListener('click',svgOff);
 
+/* ---------------- Fraiseuse CNC : angles rentrants arrondis, os de chien ---------------- */
+const cncStats={clamped:0};
+function ringArea(r){let a=0;for(let i=0;i<r.length;i++){const p=r[i],q=r[(i+1)%r.length];a+=p[0]*q[1]-q[0]*p[1];}return a/2;}
+// Arrondit les angles rentrants (côté vide) d'un contour. isRoot(v) -> true : coin laissé net, on y creusera une encoche de dégagement.
+function cncRoundGeom(geom,r,isRoot,notches){
+  const out=[];
+  for(const poly of geom){
+    const rings=poly.map((ring,k)=>{
+      let P=ring.slice(0,-1);if(P.length<3)return ring;
+      const ccw=ringArea(P)>0;
+      if((k===0)!==ccw)P=P.reverse(); // matière toujours à gauche : extérieur CCW, trous CW
+      const n=P.length,U=[],E=[];
+      for(let i=0;i<n;i++){const a=P[i],b=P[(i+1)%n],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1e-12;E.push(l);U.push([dx/l,dy/l]);}
+      const cand=new Array(n).fill(null);
+      for(let i=0;i<n;i++){
+        const u1=U[(i+n-1)%n],u2=U[i],cr=u1[0]*u2[1]-u1[1]*u2[0],dt=u1[0]*u2[0]+u1[1]*u2[1];
+        if(cr>=-1e-9)continue; // convexe ou plat
+        const th=Math.acos(Math.max(-1,Math.min(1,dt)));
+        if(th<0.026)continue;
+        if(isRoot&&isRoot(P[i])){
+          if(notches){const bx=u2[0]-u1[0],by=u2[1]-u1[1],bl=Math.hypot(bx,by)||1;notches.push([P[i][0]+bx/bl*0.8*r,P[i][1]+by/bl*0.8*r]);}
+          continue;
+        }
+        cand[i]={th,d:r*Math.tan(th/2)};
+      }
+      const res=[];
+      for(let i=0;i<n;i++){
+        const c=cand[i];
+        if(!c){res.push(P[i]);continue;}
+        const ep=E[(i+n-1)%n],en=E[i],pc=cand[(i+n-1)%n],nc=cand[(i+1)%n];
+        const ap=(pc?ep/2:ep)*0.98,an=(nc?en/2:en)*0.98;
+        const d=Math.min(c.d,ap,an),rv=d/Math.tan(c.th/2);
+        if(d<1e-4){res.push(P[i]);continue;}
+        if(c.th>0.17&&rv<0.85*r)cncStats.clamped++;
+        const u1=U[(i+n-1)%n],u2=U[i],v=P[i];
+        const T1=[v[0]-u1[0]*d,v[1]-u1[1]*d],C=[T1[0]+u1[1]*rv,T1[1]-u1[0]*rv];
+        const step=rv>0.011?2*Math.acos(1-0.01/rv):0.5,m=Math.max(1,Math.ceil(c.th/step));
+        const a0=Math.atan2(T1[1]-C[1],T1[0]-C[0]);
+        for(let j=0;j<=m;j++){const a=a0-c.th*j/m;res.push([C[0]+rv*Math.cos(a),C[1]+rv*Math.sin(a)]);}
+      }
+      res.push(res[0]);return res;
+    });
+    out.push(rings);
+  }
+  return out;
+}
+function circlePoly(cx,cy,r,n=28){const p=[];for(let i=0;i<n;i++){const a=i*2*Math.PI/n;p.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]);}p.push(p[0]);return [[p]];}
+// pièce : coins rentrants arrondis, sauf à la base des ergots où l'on creuse un dégagement
+function cncShape(geom,r,tabs){
+  if(!geom||!geom.length)return geom;
+  const notches=[];
+  const isRoot=v=>v[1]>=-1e-6&&tabs.some(([a,b])=>Math.abs(v[0]-a)<1e-6||Math.abs(v[0]-b)<1e-6);
+  let g=cncRoundGeom(geom,r,isRoot,notches);
+  if(notches.length){
+    const cut=polygonClipping.union(...notches.map(c=>circlePoly(c[0],c[1],r)));
+    g=polygonClipping.difference(g,cut);
+  }
+  return g;
+}
+function cncRoundOutline(geom,r){return cncRoundGeom(geom,r,null,null);}
+// fente de la plaque : rectangle + 4 os de chien aux coins
+function dogboneSlot(pts,r){
+  const cx=(pts[0][0]+pts[1][0]+pts[2][0]+pts[3][0])/4,cy=(pts[0][1]+pts[1][1]+pts[2][1]+pts[3][1])/4;
+  const circles=pts.map(p=>{
+    const dx=cx-p[0],dy=cy-p[1];
+    // direction diagonale vers l'intérieur de la fente
+    const e1=[pts[1][0]-pts[0][0],pts[1][1]-pts[0][1]],e2=[pts[3][0]-pts[0][0],pts[3][1]-pts[0][1]];
+    const l1=Math.hypot(...e1),l2=Math.hypot(...e2);
+    const a=[e1[0]/l1,e1[1]/l1],b=[e2[0]/l2,e2[1]/l2];
+    const sa=Math.sign(dx*a[0]+dy*a[1]),sb=Math.sign(dx*b[0]+dy*b[1]);
+    const vx=sa*a[0]+sb*b[0],vy=sa*a[1]+sb*b[1],vl=Math.hypot(vx,vy)||1;
+    return circlePoly(p[0]+vx/vl*0.8*r,p[1]+vy/vl*0.8*r,r);
+  });
+  const u=polygonClipping.union([[pts.concat([pts[0]])]],...circles);
+  return u[0][0].slice(0,-1);
+}
+
 /* ================= Assistant en 3 étapes ================= */
 const SHAPE_FR={star:'étoile',circle:'rond',square:'carré',triangle:'triangle',polygon:'polygone',flower:'fleur',heart:'cœur',draw:'dessin libre'};
 const AXIS_HELP={
@@ -1979,7 +2077,7 @@ async function loadProject(text,handle,fname){
         if(e.type==='checkbox'||e.type==='radio')e.checked=!!val;else e.value=val;
       }
       updateGenUI();if(d.fields&&d.fields.gTw!=null)$('gTw').value=d.fields.gTw;
-      ['gShape','axis','sheetFmt','plateShape'].forEach(syncTiles);syncChips();updateAxisHelp();updatePlateUI();
+      ['gShape','axis','sheetFmt','plateShape'].forEach(syncTiles);syncChips();updateAxisHelp();updatePlateUI();updateCutUI();
       $$('input[type=range][data-pair]').forEach(r=>{r.value=$(r.dataset.pair).value;});
       refreshModel(true);applySinkView();
       if(d.calculated){await new Promise(r=>setTimeout(r,30));generate();}
@@ -2007,6 +2105,16 @@ addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='
 const PLATE_HELP={rect:'Un rectangle qui entoure tout le modèle.',circle:'Un disque qui entoure tout le modèle, avec la marge choisie.',oval:'Une ellipse qui épouse les proportions du modèle, avec la marge choisie.',contour:'La plaque suit la silhouette du modèle vue de dessus, avec la marge choisie tout autour.'};
 function updatePlateUI(){const v=$('plateShape').value;$('plateHelp').textContent=PLATE_HELP[v]||'';$('plateFillRow').hidden=v!=='contour';syncTiles('plateShape');}
 $('plateShape').addEventListener('change',updatePlateUI);updatePlateUI();
+
+/* --- machine de découpe --- */
+function updateCutUI(){
+  const c=$('cutMode').value==='cnc';$('cncRow').hidden=!c;syncTiles('cutMode');
+  const t=+$('t').value||3,clr=+$('clr').value||0,D=+$('cncD').value||2,w=t+clr;
+  $('cncHelp').textContent=D>w+1e-9?`Fraise trop grosse : les fentes font ${w.toFixed(2)} mm de large (bois + jeu). Maximum ${w.toFixed(2)} mm.`:`Les angles rentrants auront un rayon de ${(D/2).toFixed(2)} mm. Les ergots font au moins ${(2.5*D).toFixed(1)} mm de large. Fraise maximale pour ce bois : ${w.toFixed(2)} mm.`;
+  $('cncHelp').style.color=D>w+1e-9?'#c2260c':'';
+}
+['cutMode','cncD','t','clr'].forEach(id=>{$(id).addEventListener('change',updateCutUI);$(id).addEventListener('input',updateCutUI);});
+updateCutUI();
 </script>
 </body>
 </html>
