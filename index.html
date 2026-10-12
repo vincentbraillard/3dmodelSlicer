@@ -44,7 +44,16 @@
   .step.done .bub .n{display:none}.step.done .bub .ck{display:block}
   .step:disabled{cursor:default;opacity:.55}
   .link{width:34px;height:0;border-top:3px dotted var(--ink2);opacity:.5}
-  .help{margin-left:auto}
+  .tools{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .projname{font:700 13px var(--body);color:var(--ink2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .projname.dirty::after{content:" •";color:var(--tomato)}
+  .projname:empty::after{display:none}
+  .filemenu{position:relative}
+  .menu{position:absolute;right:0;top:calc(100% + 8px);z-index:70;min-width:300px;background:#fff;border:2px solid var(--ink);border-radius:18px;padding:6px;box-shadow:5px 5px 0 var(--ink)}
+  .menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:700 14px var(--body);color:var(--ink);background:none;border:0;border-radius:12px;padding:10px 12px;cursor:pointer}
+  .menu button:hover,.menu button:focus-visible{background:var(--accent-soft)}
+  .menu button small{margin-left:auto;font-weight:600;color:var(--ink2);font-size:12px}
+  .menu hr{border:0;border-top:2px dotted var(--ink2);opacity:.35;margin:4px 8px}
   .edge{height:12px;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);background:repeating-linear-gradient(180deg,var(--ply) 0 4px,var(--ply2) 4px 5px,var(--ply) 5px 8px,var(--ply2) 8px 9px,var(--ply) 9px 12px);position:relative}
   .edge::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--p,34%);background:repeating-linear-gradient(180deg,var(--accent) 0 4px,color-mix(in srgb,var(--accent) 70%,#000) 4px 5px,var(--accent) 5px 8px,color-mix(in srgb,var(--accent) 70%,#000) 8px 9px,var(--accent) 9px 12px);border-right:2px solid var(--ink);transition:width .6s cubic-bezier(.3,1.4,.5,1)}
   body[data-step="2"] .edge{--p:67%}body[data-step="3"] .edge{--p:100%}
@@ -210,7 +219,7 @@
     .stage{order:-1;height:48vh}
     .panel{border-right:0}
     .step small,.brand small{display:none}.step b{font-size:13px}.link{width:12px}
-    .top{gap:10px;padding:8px 12px}.help .t{display:none}
+    .top{gap:10px;padding:8px 12px}.help .t,.filemenu .t,.projname{display:none}
     .tiles{grid-template-columns:repeat(4,1fr)}
   }
 </style>
@@ -226,6 +235,11 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 2.5 3.5 7v10L12 21.5 20.5 17V7L12 2.5Z"/><path d="M3.5 7 12 11.5 20.5 7M12 11.5v10"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></symbol>
+  <symbol id="i-saveas" viewBox="0 0 24 24"><path d="M5 4h11l3 3v4M5 4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h6"/><path d="M8 4v5h7V4"/><path d="m14 19 5-5 2 2-5 5h-2z"/></symbol>
+  <symbol id="i-oval" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9.5" ry="6"/></symbol>
+  <symbol id="i-contour" viewBox="0 0 24 24"><path d="M12 3.5c3 0 3.5 3 6 4s3.5 3 2.5 6-3.5 4-6 5.5-4 .5-6.5-1S3 14 4 10.5 9 3.5 12 3.5z"/><path d="M12 8c2 0 3 1.5 4 2.5s0 3.5-2 4.5-4 0-5-1.5.5-3.5 1.5-4.5z" stroke-dasharray="2 2"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
   <symbol id="i-wand" viewBox="0 0 24 24"><path d="m4 20 10.5-10.5"/><path d="m13 5.5 5.5 5.5"/><path d="M18 2.5v3M16.5 4h3M6 3v2.4M4.8 4.2h2.4M20.5 14v2.4M19.3 15.2h2.4"/></symbol>
   <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6.5" r="2.6"/><circle cx="6" cy="17.5" r="2.6"/><path d="m8 8.2 12 9.8M8 15.8 20 6"/></symbol>
@@ -251,6 +265,7 @@
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.7v.1"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17"/></symbol>
   <symbol id="i-wood" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
   <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
   <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 1 1 3.6 2.4c-.7.4-1.1.9-1.1 1.8M12 16.8v.1"/></symbol>
@@ -268,7 +283,20 @@
     <i class="link"></i>
     <button class="step" data-step="3"><span class="bub"><span class="n">3</span><svg class="ic ck"><use href="#i-check"/></svg></span><span><b>Export</b><small>Fichiers pour le laser</small></span></button>
   </nav>
-  <button class="btn sm help" id="helpBtn"><svg class="ic"><use href="#i-help"/></svg><span class="t">Comment ça marche</span></button>
+  <div class="tools">
+    <span class="projname" id="projName"></span>
+    <div class="filemenu">
+      <button class="btn sm" id="fileBtn" aria-haspopup="true" aria-expanded="false"><svg class="ic"><use href="#i-folder"/></svg><span class="t">Mon projet</span><svg class="ic"><use href="#i-chev-d"/></svg></button>
+      <div class="menu" id="fileMenu" hidden role="menu">
+        <button id="fOpen" role="menuitem"><svg class="ic"><use href="#i-folder"/></svg>Ouvrir un projet…<small>Ctrl+O</small></button>
+        <hr>
+        <button id="fSave" role="menuitem"><svg class="ic"><use href="#i-save"/></svg>Enregistrer<small>Ctrl+S</small></button>
+        <button id="fSaveAs" role="menuitem"><svg class="ic"><use href="#i-saveas"/></svg>Enregistrer sous…<small>Ctrl+Maj+S</small></button>
+      </div>
+      <input type="file" id="projFile" accept=".sliceo,.json,application/json" class="sr">
+    </div>
+    <button class="btn sm help" id="helpBtn"><svg class="ic"><use href="#i-help"/></svg><span class="t">Comment ça marche</span></button>
+  </div>
 </header>
 <div class="edge" aria-hidden="true"></div>
 
@@ -407,6 +435,20 @@
         <div class="fld"><div class="lab">Épaisseur de la plaque de base</div>
           <div class="ctl"><input type="range" data-pair="pt" min="1" max="12" step="0.5"><input class="num" type="number" id="pt" value="3" min="0.5" step="0.1"><span class="u">mm</span></div></div>
 
+        <div class="fld"><div class="lab">Forme de la plaque de base</div>
+          <select id="plateShape" hidden><option value="rect">rect</option><option value="circle">circle</option><option value="oval">oval</option><option value="contour">contour</option></select>
+          <div class="tiles">
+            <button class="tile" data-sel="plateShape" data-val="rect" style="--c:var(--sky)"><svg class="ic"><use href="#i-square"/></svg>Rectangle</button>
+            <button class="tile" data-sel="plateShape" data-val="circle" style="--c:var(--mint)"><svg class="ic"><use href="#i-circle"/></svg>Rond</button>
+            <button class="tile" data-sel="plateShape" data-val="oval" style="--c:var(--grape)"><svg class="ic"><use href="#i-oval"/></svg>Ovale</button>
+            <button class="tile" data-sel="plateShape" data-val="contour" style="--c:var(--pink)"><svg class="ic"><use href="#i-contour"/></svg>Suit le modèle</button>
+          </div>
+          <p class="s" id="plateHelp"></p>
+          <div class="lab" style="margin-top:10px">Marge autour du modèle</div>
+          <div class="ctl"><input type="range" data-pair="mar" min="0" max="60" step="1"><input class="num" type="number" id="mar" value="10" min="0" step="1"><span class="u">mm</span></div>
+          <label class="sw" id="plateFillRow" hidden style="margin-top:8px"><span>Plaque pleine<small>Bouche les trous au milieu du modèle (anneau, etc.).</small></span><input type="checkbox" id="plateFill"><i></i></label>
+        </div>
+
         <details class="adv"><summary><svg class="ic"><use href="#i-settings"/></svg>Réglages avancés</summary><div class="in">
           <div class="fld"><div class="lab">Largeur des ergots <span class="tip" tabindex="0" data-tip="Un ergot est un petit tenon sous chaque pièce. Il entre dans une fente de la plaque pour tenir la pièce debout.">?</span></div>
             <div class="ctl"><input class="num" type="number" id="tw" value="8" min="2" step="0.5"><span class="u">mm</span></div></div>
@@ -414,8 +456,6 @@
             <div class="ctl"><input class="num" type="number" id="off" value="1.5" min="0.1" step="0.1"><span class="u">mm</span></div></div>
           <div class="fld"><div class="lab">Jeu d'assemblage <span class="tip" tabindex="0" data-tip="Petit espace ajouté dans chaque fente pour que les pièces rentrent sans forcer. 0,1 mm convient souvent.">?</span></div>
             <div class="ctl"><input class="num" type="number" id="clr" value="0.1" min="0" step="0.05"><span class="u">mm</span></div></div>
-          <div class="fld"><div class="lab">Bord de la plaque</div>
-            <div class="ctl"><input class="num" type="number" id="mar" value="10" min="0" step="1"><span class="u">mm</span></div></div>
           <div id="centerRow">
             <div class="fld"><div class="lab">Centre de rotation <span class="tip" tabindex="0" data-tip="Point autour duquel les pièces sont réparties. (0 ; 0) correspond au milieu du modèle.">?</span></div>
               <div class="ctl"><input class="num" type="number" id="cx" value="0" step="0.5" aria-label="Centre X"><input class="num" type="number" id="cy" value="0" step="0.5" aria-label="Centre Y"><span class="u">mm</span></div></div>
@@ -880,7 +920,6 @@ function generate(){
   }
 
   // Plateau (coordonnées monde X,Y)
-  const pX0=mn[0]-mar,pX1=mx[0]+mar,pY0=mn[1]-mar,pY1=mx[1]+mar;
   const slots=[];
   for(const p of pieces){
     const {nx,ny,dx,dy,ox,oy}=p.pl,h=(t+clr)/2;
@@ -891,11 +930,15 @@ function generate(){
     }
   }
 
+  const plateKind=$('plateShape').value,plateGeom=plateGeometry(plateKind,V,F,slots,mar,$('plateFill').checked);
+  let pX0=1e18,pX1=-1e18,pY0=1e18,pY1=-1e18;
+  for(const poly of plateGeom)for(const q of poly[0]){pX0=Math.min(pX0,q[0]);pX1=Math.max(pX1,q[0]);pY0=Math.min(pY0,q[1]);pY1=Math.max(pY1,q[1]);}
   // Éléments à ranger : tracé de découpe (cut) et numéros (lbl) restent séparés pour pouvoir activer les numéros ensuite
   const fmt=v=>v.toFixed(3);
   const plateW=pX1-pX0,plateH=pY1-pY0;
   const sx=x=>x-pX0,sy=y=>pY1-y; // vue de dessus (Y vers le haut)
-  let pinCut=`<path d="M0 0H${fmt(plateW)}V${fmt(plateH)}H0Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
+  let pinCut='';
+  for(const poly of plateGeom)for(const r of poly)pinCut+=`<path d="${r.slice(0,-1).map((q,k)=>(k?'L':'M')+fmt(sx(q[0]))+' '+fmt(sy(q[1]))).join('')}Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
   for(const s of slots){
     pinCut+=`<path d="${s.pts.map((q,k)=>(k?'L':'M')+fmt(sx(q[0]))+' '+fmt(sy(q[1]))).join('')}Z" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
   }
@@ -926,7 +969,7 @@ function generate(){
   }
   calc={plate,pieceItems,smallLbl,warns,t,plateT,nPieces:valid.length,nSlots:slots.length,plateW,plateH,
         infoBase:`Modèle : ${(mx[0]-mn[0]).toFixed(1)} × ${(mx[1]-mn[1]).toFixed(1)} × ${(mx[2]-mn[2]).toFixed(1)} mm\n${infoStep}`};
-  result={pieces,slots,t,plateT,bounds:{pX0,pX1,pY0,pY1},mn,mx,files:{},sheets:[]};
+  result={pieces,slots,t,plateT,bounds:{pX0,pX1,pY0,pY1},plateGeom,mn,mx,files:{},sheets:[]};
   stale=false;
   buildPreview();
   layoutSheets();
@@ -1128,9 +1171,10 @@ function buildPreview(){
     }
   }
   // plateau
-  const sh=new THREE.Shape([[bounds.pX0,bounds.pY0],[bounds.pX1,bounds.pY0],[bounds.pX1,bounds.pY1],[bounds.pX0,bounds.pY1]].map(v2));
-  for(const s of result.slots)sh.holes.push(new THREE.Path(s.pts.map(v2)));
-  const pg=new THREE.ExtrudeGeometry(sh,{depth:plateT,bevelEnabled:false});pg.translate(0,0,-plateT);
+  const pip=(pt,ring)=>{let ins=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>pt[1])!==(b[1]>pt[1])&&pt[0]<(b[0]-a[0])*(pt[1]-a[1])/(b[1]-a[1])+a[0])ins=!ins;}return ins;};
+  const plShapes=result.plateGeom.map(poly=>{const sh=new THREE.Shape(poly[0].slice(0,-1).map(v2));for(let i=1;i<poly.length;i++)sh.holes.push(new THREE.Path(poly[i].slice(0,-1).map(v2)));return {sh,ring:poly[0]};});
+  for(const s of result.slots){const host=plShapes.find(o=>pip(s.pts[0],o.ring))||plShapes[0];host.sh.holes.push(new THREE.Path(s.pts.map(v2)));}
+  const pg=new THREE.ExtrudeGeometry(plShapes.map(o=>o.sh),{depth:plateT,bevelEnabled:false});pg.translate(0,0,-plateT);
   const pm=new THREE.Mesh(pg,real?[faceMat(),plateSide]:new THREE.MeshStandardMaterial({color:0xd6a96c,roughness:.85,side:THREE.DoubleSide}));
   pm.castShadow=pm.receiveShadow=real;
   if(!real)pm.add(new THREE.LineSegments(new THREE.EdgesGeometry(pg,30),lineMat));
@@ -1461,6 +1505,161 @@ $('tab2d').onclick=()=>{
   show('2d');
 };
 
+/* ---------------- Forme de la plaque de base ---------------- */
+function clippedTriangles(V,Fx){ // triangles projetés (x,y) de la partie du modèle au-dessus de la plaque (z >= 0)
+  const out=[];
+  for(let f=0;f<Fx.length;f+=3){
+    const P=[0,1,2].map(k=>{const i=Fx[f+k]*3;return [V[i],V[i+1],V[i+2]];});
+    const poly=[];
+    for(let k=0;k<3;k++){
+      const a=P[k],b=P[(k+1)%3],ina=a[2]>=0,inb=b[2]>=0;
+      if(ina)poly.push([a[0],a[1]]);
+      if(ina!==inb){const u=(0-a[2])/(b[2]-a[2]);poly.push([a[0]+u*(b[0]-a[0]),a[1]+u*(b[1]-a[1])]);}
+    }
+    for(let k=1;k+1<poly.length;k++)out.push([poly[0],poly[k],poly[k+1]]);
+  }
+  return out;
+}
+function dpRing(r,eps){ // Douglas-Peucker sur un contour fermé
+  const n=r.length;if(n<8)return r;
+  const d2=(p,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;if(!l)return Math.hypot(p[0]-a[0],p[1]-a[1]);return Math.abs((p[0]-a[0])*dy-(p[1]-a[1])*dx)/Math.sqrt(l);};
+  const keep=new Uint8Array(n);keep[0]=1;
+  let far=0,fd=-1;for(let i=1;i<n;i++){const d=Math.hypot(r[i][0]-r[0][0],r[i][1]-r[0][1]);if(d>fd){fd=d;far=i;}}
+  keep[far]=1;
+  const st=[[0,far],[far,n]];
+  while(st.length){
+    const [i,j]=st.pop(),a=r[i],b=r[j%n];let m=-1,md=eps;
+    for(let k=i+1;k<j;k++){const d=d2(r[k],a,b);if(d>md){md=d;m=k;}}
+    if(m>=0){keep[m]=1;st.push([i,m],[m,j]);}
+  }
+  return r.filter((_,i)=>keep[i]);
+}
+function edt1(f,n,v,z,out){ // transformée de distance 1D (Felzenszwalb), f = coûts carrés
+  let k=0;v[0]=0;z[0]=-1e20;z[1]=1e20;
+  for(let q=1;q<n;q++){
+    let s;
+    for(;;){const p=v[k];s=((f[q]+q*q)-(f[p]+p*p))/(2*q-2*p);if(s<=z[k]&&k>0)k--;else break;}
+    if(s<=z[k]){v[0]=q;z[0]=-1e20;z[1]=1e20;k=0;continue;}
+    k++;v[k]=q;z[k]=s;z[k+1]=1e20;
+  }
+  k=0;for(let q=0;q<n;q++){while(z[k+1]<q)k++;const p=v[k];out[q]=(q-p)*(q-p)+f[p];}
+}
+function contourPlate(tris,mar,fill){
+  let x0=1e18,x1=-1e18,y0=1e18,y1=-1e18;
+  for(const T of tris)for(const p of T){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
+  let c=Math.max(0.3,Math.max(x1-x0,y1-y0)/600),pad=mar+4*c,nx,ny;
+  for(;;){nx=Math.ceil((x1-x0+2*pad)/c)+1;ny=Math.ceil((y1-y0+2*pad)/c)+1;if(nx*ny<=1.4e6)break;c*=1.2;}
+  const ox=x0-pad,oy=y0-pad,INF=1e12,g=new Float64Array(nx*ny).fill(INF);
+  const eps=c*0.7;
+  for(const [A,B,C] of tris){
+    const mnx=Math.max(0,Math.floor((Math.min(A[0],B[0],C[0])-eps-ox)/c)),mxx=Math.min(nx-1,Math.ceil((Math.max(A[0],B[0],C[0])+eps-ox)/c));
+    const mny=Math.max(0,Math.floor((Math.min(A[1],B[1],C[1])-eps-oy)/c)),mxy=Math.min(ny-1,Math.ceil((Math.max(A[1],B[1],C[1])+eps-oy)/c));
+    const E=[[A,B],[B,C],[C,A]].map(([p,q])=>{const dx=q[0]-p[0],dy=q[1]-p[1],l=Math.hypot(dx,dy);return {p,dx,dy,l};});
+    const area=(B[0]-A[0])*(C[1]-A[1])-(B[1]-A[1])*(C[0]-A[0]);
+    if(Math.abs(area)<1e-12&&E.every(e=>e.l<1e-9))continue;
+    const sg=area>=0?1:-1;
+    for(let j=mny;j<=mxy;j++)for(let i=mnx;i<=mxx;i++){
+      const px=ox+i*c,py=oy+j*c;let ok=true;
+      for(const e of E){
+        if(e.l<1e-9)continue;
+        if(sg*(e.dx*(py-e.p[1])-e.dy*(px-e.p[0]))/e.l<-eps){ok=false;break;}
+      }
+      if(ok)g[j*nx+i]=0;
+    }
+  }
+  // distance au modèle (en cellules², puis en mm)
+  const m=Math.max(nx,ny),v=new Int32Array(m),z=new Float64Array(m+1),tmp=new Float64Array(m),o=new Float64Array(m);
+  for(let i=0;i<nx;i++){for(let j=0;j<ny;j++)tmp[j]=g[j*nx+i];edt1(tmp,ny,v,z,o);for(let j=0;j<ny;j++)g[j*nx+i]=o[j];}
+  for(let j=0;j<ny;j++){for(let i=0;i<nx;i++)tmp[i]=g[j*nx+i];edt1(tmp,nx,v,z,o);for(let i=0;i<nx;i++)g[j*nx+i]=o[i];}
+  const fld=new Float64Array(nx*ny);
+  for(let k=0;k<fld.length;k++)fld[k]=Math.sqrt(g[k])*c-mar;
+  if(fill){ // bouche les trous : tout ce qui n'est pas relié au bord extérieur devient plein
+    const out=new Uint8Array(nx*ny),st=[];
+    const push=k=>{if(!out[k]&&fld[k]>0){out[k]=1;st.push(k);}};
+    for(let i=0;i<nx;i++){push(i);push((ny-1)*nx+i);}for(let j=0;j<ny;j++){push(j*nx);push(j*nx+nx-1);}
+    while(st.length){const k=st.pop(),i=k%nx,j=(k-i)/nx;if(i>0)push(k-1);if(i<nx-1)push(k+1);if(j>0)push(k-nx);if(j<ny-1)push(k+nx);}
+    for(let k=0;k<fld.length;k++)if(fld[k]>0&&!out[k])fld[k]=-c;
+  }
+  // marching squares avec interpolation linéaire
+  const pts=new Map(),adj=new Map(),segs=[];
+  const eid=(i,j,vert)=>(j*nx+i)*2+(vert?1:0);
+  const ept=(i,j,vert)=>{
+    const id=eid(i,j,vert);
+    if(!pts.has(id)){
+      const a=fld[j*nx+i],b=vert?fld[(j+1)*nx+i]:fld[j*nx+i+1],t=a/(a-b);
+      pts.set(id,vert?[ox+i*c,oy+(j+t)*c]:[ox+(i+t)*c,oy+j*c]);
+    }
+    return id;
+  };
+  for(let j=0;j<ny-1;j++)for(let i=0;i<nx-1;i++){
+    const a=fld[j*nx+i]<0,b=fld[j*nx+i+1]<0,cc=fld[(j+1)*nx+i+1]<0,d=fld[(j+1)*nx+i]<0;
+    const code=(a?1:0)|(b?2:0)|(cc?4:0)|(d?8:0);
+    if(code===0||code===15)continue;
+    const B=()=>ept(i,j,false),R=()=>ept(i+1,j,true),T=()=>ept(i,j+1,false),L=()=>ept(i,j,true);
+    let pr=[];
+    switch(code){
+      case 1:case 14:pr=[[L(),B()]];break;
+      case 2:case 13:pr=[[B(),R()]];break;
+      case 3:case 12:pr=[[L(),R()]];break;
+      case 4:case 11:pr=[[R(),T()]];break;
+      case 6:case 9:pr=[[B(),T()]];break;
+      case 7:case 8:pr=[[L(),T()]];break;
+      case 5:case 10:{
+        const mid=(fld[j*nx+i]+fld[j*nx+i+1]+fld[(j+1)*nx+i+1]+fld[(j+1)*nx+i])<0;
+        if((code===5)===mid)pr=[[L(),T()],[B(),R()]];else pr=[[L(),B()],[R(),T()]];
+      }
+    }
+    for(const s of pr){const si=segs.length;segs.push(s);for(const e of s){let l=adj.get(e);if(!l){l=[];adj.set(e,l);}l.push(si);}}
+  }
+  const used=new Uint8Array(segs.length),loops=[];
+  for(let s0=0;s0<segs.length;s0++){
+    if(used[s0])continue;
+    const loop=[];let cur=s0,eIn=segs[s0][0];
+    for(;;){
+      used[cur]=1;const [a,b]=segs[cur],eOut=a===eIn?b:a;
+      loop.push(pts.get(eIn));
+      if(eOut===segs[s0][0])break;
+      let nxt=-1;for(const q of adj.get(eOut)||[])if(!used[q]){nxt=q;break;}
+      if(nxt<0)break;cur=nxt;eIn=eOut;
+    }
+    if(loop.length>=4)loops.push(loop);
+  }
+  const rings=loops.map(l=>{
+    let r=l;for(let k=0;k<2;k++)r=r.map((p,i)=>{const a=r[(i+r.length-1)%r.length],b=r[(i+1)%r.length];return [.25*a[0]+.5*p[0]+.25*b[0],.25*a[1]+.5*p[1]+.25*b[1]];});
+    return dpRing(r,0.06);
+  }).filter(r=>r.length>=3);
+  if(!rings.length)return null;
+  return polygonClipping.xor(...rings.map(r=>[[r.concat([r[0]])]]));
+}
+function minCircle(P){ // cercle quasi minimal (Bădoiu-Clarkson)
+  let cx=P[0][0],cy=P[0][1];
+  for(let i=1;i<=400;i++){
+    let bi=0,bd=-1;for(let k=0;k<P.length;k++){const d=(P[k][0]-cx)**2+(P[k][1]-cy)**2;if(d>bd){bd=d;bi=k;}}
+    cx+=(P[bi][0]-cx)/(i+1);cy+=(P[bi][1]-cy)/(i+1);
+  }
+  let r=0;for(const p of P)r=Math.max(r,Math.hypot(p[0]-cx,p[1]-cy));
+  return {cx,cy,r};
+}
+function plateGeometry(kind,V,Fx,slots,mar,fill){
+  const tris=clippedTriangles(V,Fx),P=[];
+  for(const T of tris)for(const p of T)P.push(p);
+  for(const s of slots)for(const q of s.pts)P.push(q);
+  if(!P.length)return null;
+  let x0=1e18,x1=-1e18,y0=1e18,y1=-1e18;
+  for(const p of P){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
+  const rect=[[[[x0-mar,y0-mar],[x1+mar,y0-mar],[x1+mar,y1+mar],[x0-mar,y1+mar],[x0-mar,y0-mar]]]];
+  if(kind==='rect')return rect;
+  const ell=(cx,cy,a,b)=>{const n=180,r=[];for(let i=0;i<n;i++){const th=i*2*Math.PI/n;r.push([cx+a*Math.cos(th),cy+b*Math.sin(th)]);}r.push(r[0]);return [[r]];};
+  if(kind==='circle'){const c=minCircle(P);return ell(c.cx,c.cy,c.r+mar,c.r+mar);}
+  if(kind==='oval'){
+    const cx=(x0+x1)/2,cy=(y0+y1)/2,hx=Math.max((x1-x0)/2,1e-3),hy=Math.max((y1-y0)/2,1e-3);
+    let k=0;for(const p of P)k=Math.max(k,Math.hypot((p[0]-cx)/hx,(p[1]-cy)/hy));
+    return ell(cx,cy,k*hx+mar,k*hy+mar);
+  }
+  const tri2=tris.concat(slots.flatMap(s=>[[s.pts[0],s.pts[1],s.pts[2]],[s.pts[0],s.pts[2],s.pts[3]]]));
+  return contourPlate(tri2,mar,fill)||rect;
+}
+
 /* ================= Assistant en 3 étapes ================= */
 const SHAPE_FR={star:'étoile',circle:'rond',square:'carré',triangle:'triangle',polygon:'polygone',flower:'fleur',heart:'cœur',draw:'dessin libre'};
 const AXIS_HELP={
@@ -1627,6 +1826,109 @@ function applySinkView(){
   $('sinkInfo').textContent=s>0?`${s} mm coupés en bas : il reste ${(h-s).toFixed(1)} mm de hauteur, posés sur une surface plate.`:'Aucune coupe : le modèle repose entier sur la base.';
 }
 $('sinkCut').addEventListener('input',()=>{applySinkView();if(result&&!stale){stale=true;$('genTxt').textContent='Recalculer la découpe';}});
+
+/* --- la taille se met à jour en direct (curseur compris), la coupe suit le modèle agrandi --- */
+{let sT;$('scale').addEventListener('input',()=>{clearTimeout(sT);sT=setTimeout(()=>{if(baseV)refreshModel(false);},120);});}
+
+/* ================= Projets : enregistrer / ouvrir ================= */
+const PROJ_EXT='.sliceo';
+let projHandle=null,projName='',dirty=false;
+const fieldEls=()=>[...document.querySelectorAll('#pane1 [id],#pane2 [id],#pane3 [id]')].filter(e=>/^(INPUT|SELECT)$/.test(e.tagName)&&e.type!=='file'&&e.type!=='button');
+function b64(buf){const u=new Uint8Array(buf.buffer,buf.byteOffset,buf.byteLength);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}
+function unb64(str){const s=atob(str),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u.buffer;}
+function setDirty(v){dirty=v;const el=$('projName');el.classList.toggle('dirty',v);}
+function showProjName(){const el=$('projName');el.textContent=projName||'';el.title=projName||'';$('fileBtn').title=projName?'Projet : '+projName:'Mon projet';}
+function projectData(){
+  const f={};for(const e of fieldEls())f[e.id]=(e.type==='checkbox'||e.type==='radio')?e.checked:e.value;
+  return {
+    format:'sliceo-project',version:1,savedAt:new Date().toISOString(),name:projName||baseName||'projet',
+    mode,step,calculated:!!result,realMode:!!realMode,baseName,
+    fields:f,drawnPoly:drawnPoly||null,
+    mesh:{v:b64(Float32Array.from(baseV)),f:b64(Uint32Array.from(F))}
+  };
+}
+function cleanName(n){return (n||'projet').replace(/\.(sliceo|json)$/i,'').replace(/[\\/:*?"<>|]+/g,'_').trim()||'projet';}
+async function writeProject(handle,name){
+  const text=JSON.stringify(projectData());
+  const w=await handle.createWritable();await w.write(text);await w.close();
+}
+function downloadProject(name){download(cleanName(name)+PROJ_EXT,JSON.stringify(projectData()),'application/json');}
+async function saveProject(as){
+  if(!baseV){toast('Rien à enregistrer : importe ou crée d\'abord un modèle.');return;}
+  closeMenu();
+  try{
+    if(window.showSaveFilePicker){
+      if(as||!projHandle){
+        projHandle=await showSaveFilePicker({suggestedName:cleanName(projName||baseName)+PROJ_EXT,types:[{description:'Projet Sliceo',accept:{'application/json':[PROJ_EXT]}}]});
+        projName=cleanName(projHandle.name);
+      }
+      await writeProject(projHandle);
+    }else{
+      if(as||!projName){const n=prompt('Nom du projet :',projName||baseName||'projet');if(n===null)return;projName=cleanName(n);}
+      downloadProject(projName);
+    }
+    showProjName();setDirty(false);toast('Projet enregistré : '+projName+PROJ_EXT);
+  }catch(e){if(e&&e.name==='AbortError')return;console.error(e);toast('Enregistrement impossible : '+(e.message||e));}
+}
+async function openProject(){
+  closeMenu();
+  if(dirty&&!confirm('Ton projet actuel a des changements non enregistrés. Ouvrir un autre projet quand même ?'))return;
+  if(window.showOpenFilePicker){
+    try{
+      const [h]=await showOpenFilePicker({types:[{description:'Projet Sliceo',accept:{'application/json':[PROJ_EXT,'.json']}}]});
+      const file=await h.getFile();await loadProject(await file.text(),h,file.name);
+    }catch(e){if(!e||e.name!=='AbortError'){console.error(e);toast('Ouverture impossible : '+(e.message||e));}}
+  }else $('projFile').click();
+}
+$('projFile').addEventListener('change',async()=>{
+  const f=$('projFile').files[0];$('projFile').value='';if(!f)return;
+  await loadProject(await f.text(),null,f.name);
+});
+async function loadProject(text,handle,fname){
+  let d;
+  try{
+    d=JSON.parse(text);
+    if(d.format!=='sliceo-project'||!d.mesh)throw new Error('ce fichier n\'est pas un projet Sliceo.');
+    const V=new Float32Array(unb64(d.mesh.v)),Fi=new Uint32Array(unb64(d.mesh.f));
+    if(!V.length||!Fi.length||Fi.length%3||Math.max(...Fi.subarray(0,Math.min(Fi.length,1e5)))>=V.length/3)throw new Error('modèle 3D illisible.');
+    await runBusy(async()=>{
+      clearTimeout(liveTimer);
+      setMode(d.mode||null);clearTimeout(liveTimer);
+      drawnPoly=d.drawnPoly||null;
+      baseV=Float64Array.from(V);F=Fi;baseName=d.baseName||cleanName(fname);result=null;
+      for(const [id,val] of Object.entries(d.fields||{})){
+        const e=$(id);if(!e)continue;
+        if(e.type==='checkbox'||e.type==='radio')e.checked=!!val;else e.value=val;
+      }
+      updateGenUI();if(d.fields&&d.fields.gTw!=null)$('gTw').value=d.fields.gTw;
+      ['gShape','axis','sheetFmt','plateShape'].forEach(syncTiles);syncChips();updateAxisHelp();updatePlateUI();
+      $$('input[type=range][data-pair]').forEach(r=>{r.value=$(r.dataset.pair).value;});
+      refreshModel(true);applySinkView();
+      if(d.calculated){await new Promise(r=>setTimeout(r,30));generate();}
+      goStep(Math.min(d.step||1,d.calculated?3:(baseV?2:1)));
+      if(d.realMode&&result){realMode=true;applyMode();show(step===3?'2d':'3d');}
+    },'Ouverture du projet…');
+    projHandle=handle;projName=cleanName(d.name||fname);showProjName();setDirty(false);
+    toast('Projet ouvert : '+projName);
+  }catch(e){console.error(e);toast('Impossible d\'ouvrir ce fichier : '+(e.message||e));}
+}
+/* menu */
+function closeMenu(){$('fileMenu').hidden=true;$('fileBtn').setAttribute('aria-expanded','false');}
+$('fileBtn').onclick=e=>{e.stopPropagation();const h=$('fileMenu').hidden;$('fileMenu').hidden=!h;$('fileBtn').setAttribute('aria-expanded',String(h));};
+document.addEventListener('click',e=>{if(!e.target.closest('.filemenu'))closeMenu();});
+$('fOpen').onclick=openProject;$('fSave').onclick=()=>saveProject(false);$('fSaveAs').onclick=()=>saveProject(true);
+addEventListener('keydown',e=>{
+  if(!(e.ctrlKey||e.metaKey))return;const k=e.key.toLowerCase();
+  if(k==='s'){e.preventDefault();saveProject(e.shiftKey);}else if(k==='o'){e.preventDefault();openProject();}
+});
+/* changements non enregistrés */
+['input','change'].forEach(ev=>$('pane1').parentElement.addEventListener(ev,()=>{if(baseV)setDirty(true);}));
+addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+
+/* --- forme de la plaque --- */
+const PLATE_HELP={rect:'Un rectangle qui entoure tout le modèle.',circle:'Un disque qui entoure tout le modèle, avec la marge choisie.',oval:'Une ellipse qui épouse les proportions du modèle, avec la marge choisie.',contour:'La plaque suit la silhouette du modèle vue de dessus, avec la marge choisie tout autour.'};
+function updatePlateUI(){const v=$('plateShape').value;$('plateHelp').textContent=PLATE_HELP[v]||'';$('plateFillRow').hidden=v!=='contour';syncTiles('plateShape');}
+$('plateShape').addEventListener('change',updatePlateUI);updatePlateUI();
 </script>
 </body>
 </html>
