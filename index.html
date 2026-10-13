@@ -297,7 +297,7 @@
         <button id="fSave" role="menuitem"><svg class="ic"><use href="#i-save"/></svg>Enregistrer<small>Ctrl+S</small></button>
         <button id="fSaveAs" role="menuitem"><svg class="ic"><use href="#i-saveas"/></svg>Enregistrer sous…<small>Ctrl+Maj+S</small></button>
       </div>
-      <input type="file" id="projFile" accept=".sliceo,.json,application/json" class="sr">
+      <input type="file" id="projFile" class="sr">
     </div>
     <button class="btn sm help" id="helpBtn"><svg class="ic"><use href="#i-help"/></svg><span class="t">Comment ça marche</span></button>
   </div>
@@ -2083,6 +2083,7 @@ document.addEventListener('dragleave',e=>{if(!e.relatedTarget)dropZone.classList
 document.addEventListener('drop',e=>{
   e.preventDefault();dropZone.classList.remove('over');
   const f=e.dataTransfer&&e.dataTransfer.files[0];
+  if(f&&/\.(sliceo|json)$/i.test(f.name)){f.text().then(t=>loadProject(t,null,f.name));return;}
   if(f){goStep(1);setMode('import');loadFile(f);}
 });
 
@@ -2163,7 +2164,7 @@ async function openProject(){
   if(dirty&&!confirm('Ton projet actuel a des changements non enregistrés. Ouvrir un autre projet quand même ?'))return;
   if(window.showOpenFilePicker){
     try{
-      const [h]=await showOpenFilePicker({types:[{description:'Projet Sliceo',accept:{'application/json':[PROJ_EXT,'.json']}}]});
+      const [h]=await showOpenFilePicker({multiple:false}); // aucun filtre : tous les fichiers restent sélectionnables
       const file=await h.getFile();await loadProject(await file.text(),h,file.name);
     }catch(e){if(!e||e.name!=='AbortError'){console.error(e);toast('Ouverture impossible : '+(e.message||e));}}
   }else $('projFile').click();
