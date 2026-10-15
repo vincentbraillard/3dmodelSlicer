@@ -510,6 +510,8 @@
           <button class="btn sm" id="sheetSwap" title="Inverser largeur et hauteur"><svg class="ic"><use href="#i-swap"/></svg></button></div></div>
 
         <label class="sw"><span>Imbriquer les formes<small>Emboîte les pièces les unes dans les autres pour gagner de la matière. Un peu plus long à calculer.</small></span><input type="checkbox" id="shNest" checked><i></i></label>
+        <div class="row" style="align-items:center;gap:10px;margin:6px 0 10px"><span style="font-weight:600;font-size:14px">Qualité de l'imbrication</span><select class="sel" id="shQ" style="margin-left:auto"><option value="0">Rapide</option><option value="30" selected>Équilibrée</option><option value="100">Maximale (plus long)</option></select></div>
+        <label class="sw"><span>Autoriser le retournement (miroir)<small>Retourne certaines pièces comme dans un miroir pour mieux les emboîter. Le dessous de la pièce se retrouve dessus : à éviter si les deux faces diffèrent.</small></span><input type="checkbox" id="shMir"><i></i></label>
         <label class="sw"><span>Autoriser la rotation des pièces<small>Plus de pièces par planche. À éviter si le sens du fil compte.</small></span><input type="checkbox" id="shRot" checked><i></i></label>
         <label class="sw"><span>Numéroter les pièces<small>Gravé sur l'ergot : invisible une fois collé.</small></span><input type="checkbox" id="lbl" checked><i></i></label>
         <label class="sw"><span>Numéroter la plaque<small>Gravé près de chaque fente, pour savoir où poser quoi.</small></span><input type="checkbox" id="lblPlate" checked><i></i></label>
@@ -1029,7 +1031,7 @@ async function layoutSheets(){
   for(const g of groups){
     let bins,oversize;
     if($('shNest').checked&&g.items.every(i=>i.geom)){
-      try{({bins,oversize}=await nestItems(g.items,SW,SH,sm,sg,allowRot,{cancel:()=>mySeq!==laySeq,progress:(a,b)=>{const e=$('busyTxt');if(e)e.textContent=`Imbrication des pièces… ${a}/${b}`;}}));}
+      try{({bins,oversize}=await nestItems(g.items,SW,SH,sm,sg,allowRot,{mirror:$('shMir').checked,fillK:+$('shQ').value,cancel:()=>mySeq!==laySeq,progress:t=>{const e=$('busyTxt');if(e)e.textContent=t;}}));}
       catch(e){if(mySeq!==laySeq)return;console.error(e);({bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot));}
     }else({bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot));
     for(const b of bins)sheets.push({g,W:SW,H:SH,pl:b.placements});
@@ -1042,7 +1044,7 @@ async function layoutSheets(){
   sheets.forEach((sh,i)=>{
     let body='';
     for(const q of sh.pl){
-      if(q.nest){body+=`<g transform="translate(${fmt(sm+q.tx)} ${fmt(sm+q.ty)}) rotate(${fmt(q.ang*180/Math.PI)})">${inner(q.it)}</g>`;continue;}
+      if(q.nest){body+=`<g transform="translate(${fmt(sm+q.tx)} ${fmt(sm+q.ty)}) rotate(${fmt(q.ang*180/Math.PI)})${q.mir?' scale(-1 1)':''}">${inner(q.it)}</g>`;continue;}
       const X=sm+q.x,Y=sm+q.y;
       body+=q.rot?`<g transform="translate(${fmt(X+q.it.h)} ${fmt(Y)}) rotate(90)">${inner(q.it)}</g>`:`<g transform="translate(${fmt(X)} ${fmt(Y)})">${inner(q.it)}</g>`;
     }
@@ -1957,9 +1959,9 @@ function stadiumSlot(pt,a,b,h){
 
 // ===== Imbrication des pièces sur les planches (masques raster, rotations libres) =====
 
-function nestRasterize(rings,ang,c,r){
+function nestRasterize(rings,ang,c,r,mir){
   const ca=Math.cos(ang),sa=Math.sin(ang);
-  const R=rings.map(rg=>rg.map(p=>[p[0]*ca-p[1]*sa,p[0]*sa+p[1]*ca]));
+  const R=rings.map(rg=>rg.map(p=>{const px=mir?-p[0]:p[0],py=p[1];return [px*ca-py*sa,px*sa+py*ca];}));
   let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;
   for(const rg of R)for(const p of rg){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
   const B=Math.ceil(r/c)+1,nx=Math.ceil((x1-x0)/c)+1+2*B,ny=Math.ceil((y1-y0)/c)+1+2*B;
@@ -1993,7 +1995,7 @@ function nestRasterize(rings,ang,c,r){
   const rr=(r/c)*(r/c),w32=(nx+31)>>5,bits=new Uint32Array(w32*ny);
   let rmin=ny,rmax=-1;
   for(let j=0;j<ny;j++)for(let i=0;i<nx;i++)if(g[j*nx+i]<=rr){bits[j*w32+(i>>5)]|=(1<<(i&31));if(j<rmin)rmin=j;if(j>rmax)rmax=j;}
-  return {bits,w32,nx,ny,B,r0:rmin,r1:rmax,cells,ang,minx:x0,miny:y0,ox,oy};
+  return {bits,w32,nx,ny,B,r0:rmin,r1:rmax,cells,ang,mir:!!mir,minx:x0,miny:y0,ox,oy};
 }
 // ox,oy : origine du masque dans le repère tourné ; la pièce dessinée à (gx*c-B*c...) voir nestItems
 async function nestItems(items,SW,SH,sm,gap,allowRot,opts){
@@ -2004,32 +2006,33 @@ async function nestItems(items,SW,SH,sm,gap,allowRot,opts){
   const r=gap/2+0.71*c,B=Math.ceil(r/c)+1;
   const gw=Math.ceil(UW/c)+2*B,gh=Math.ceil(UH/c)+2*B,sw32=((gw+31)>>5)+1;
   const step=allowRot?(opts.step||15):360,angs=[];
-  for(let a=0;a<360;a+=step)angs.push(a*Math.PI/180);
+  for(let a=0;a<360;a+=step)angs.push([a*Math.PI/180,false]);
+  if(opts.mirror)for(let a=0;a<360;a+=step)angs.push([a*Math.PI/180,true]);
   const prep=items.map(it=>{
     const rings=[];for(const poly of it.geom)if(poly[0])rings.push(poly[0].slice(0,-1)); // anneau extérieur
     return {it,rings,masks:new Array(angs.length)};
   });
-  const getMask=(P,k)=>P.masks[k]||(P.masks[k]=nestRasterize(P.rings,angs[k],c,r));
+  const getMask=(P,k)=>P.masks[k]||(P.masks[k]=nestRasterize(P.rings,angs[k][0],c,r,angs[k][1]));
   for(const P of prep)P.area=getMask(P,0).cells;
   prep.sort((a,b)=>b.area-a.area);
-  const sheets=[],oversize=[];
   let lastYield=performance.now(),done=0;
-  const tick=async()=>{
+  const tick=async(txt)=>{
     if(opts.cancel&&opts.cancel())throw new Error('annulé');
     if(performance.now()-lastYield>60){
-      if(opts.progress)opts.progress(done,prep.length);
+      if(opts.progress)opts.progress(txt);
       await new Promise(rs=>setTimeout(rs,0));lastYield=performance.now();
     }
   };
-  const tryFit=(sh,P,limit)=>{ // meilleur placement (bas, puis gauche) sur cette planche
+  let rule=0;
+  const tryFit=(sh,P)=>{ // meilleur placement (bas, puis gauche) sur cette planche
     let best=null;
     for(let k=0;k<angs.length;k++){
+      if(angs[k][1]&&P.it.kind==='plate')continue;
       const M=getMask(P,k);
       if(M.nx>gw||M.ny>gh||M.r1<0)continue;
-      const mh=M.r1+1; // dernière ligne occupée
+      const mh=M.r1+1,mw=M.nx;
       const maxY=Math.min(gh-M.ny,best?best.score-mh-1:1e9);
       const S=sh.bits,pw=M.w32,mb=M.bits;
-      // lignes non vides seulement
       const fits=(gx,gy)=>{
         const q=gx>>5,s=gx&31;
         for(let rr=M.r0;rr<=M.r1;rr++){
@@ -2053,15 +2056,15 @@ async function nestItems(items,SW,SH,sm,gap,allowRot,opts){
         }
         if(yy>=maxY)break;
       }
-      if(found){ // affinage : on remonte / recule d'un pas au plus
+      if(found){
         let [fx,fy]=found,bx=fx,by=fy;
         for(let dy=Math.max(0,fy-ST+1);dy<=fy;dy++){
           let hit=false;
           for(let dx=Math.max(0,fx-ST+1);dx<=fx;dx++)if(fits(dx,dy)){bx=dx;by=dy;hit=true;break;}
           if(hit)break;
         }
-        const score=by+mh;
-        if((!best||score<best.score||(score===best.score&&bx<best.gx)))best={k,gx:bx,gy:by,score};
+        const score=rule===1?Math.max(by+mh,bx+mw):by+mh;
+        if(!best||score<best.score||(score===best.score&&bx<best.gx))best={k,gx:bx,gy:by,score};
       }
     }
     return best;
@@ -2076,27 +2079,82 @@ async function nestItems(items,SW,SH,sm,gap,allowRot,opts){
       }
     }
     sh.free-=M.cells;
-    // la forme (repère tourné) a son coin (minx,miny) à ((gx+B)*c-B*c ...) : cellule 0 du masque = ox
-    // point de la forme (x',y') dans le repère tourné -> planche : x'-ox + gx*c - B*c
-    sh.pl.push({it:P.it,nest:true,ang:M.ang,tx:b.gx*c-M.ox-B*c,ty:b.gy*c-M.oy-B*c});
+    sh.pl.push({it:P.it,nest:true,ang:M.ang,mir:M.mir,tx:b.gx*c-M.ox-B*c,ty:b.gy*c-M.oy-B*c});
   };
-  for(const P of prep){
-    await tick();
-    let placed=false;
-    for(const sh of sheets){
-      if(sh.free<P.area)continue;
-      const b=tryFit(sh,P);
-      if(b){commit(sh,P,b);placed=true;break;}
+  // un essai complet : ordre donné, règle de score donnée
+  const pack=async(order,rl,txt)=>{
+    rule=rl;
+    const sheets=[],oversize=[];
+    for(const P of order){
+      await tick(txt);
+      let placed=false;
+      for(let si=Math.max(0,sheets.length-12);si<sheets.length;si++){
+        const sh=sheets[si];
+        if(sh.free<P.area)continue;
+        const b=tryFit(sh,P);
+        if(b){commit(sh,P,b);placed=true;break;}
+      }
+      if(!placed){
+        const sh={bits:new Uint32Array(sw32*gh),free:UW*UH/(c*c),pl:[]};
+        const b=tryFit(sh,P);
+        if(b){commit(sh,P,b);sheets.push(sh);}
+        else oversize.push(P.it);
+      }
     }
-    if(!placed){
-      const sh={bits:new Uint32Array(sw32*gh),free:UW*UH/(c*c),pl:[]};
-      const b=tryFit(sh,P);
-      if(b){commit(sh,P,b);sheets.push(sh);}
-      else oversize.push(P.it);
+    const last=sheets.length?sheets[sheets.length-1]:null;
+    const cost=sheets.length*1e9+(last?(UW*UH/(c*c)-last.free):0)+oversize.length*1e12;
+    return {sheets,oversize,cost};
+  };
+  // Remplissage planche par planche : plusieurs essais aléatoires par planche, on garde le plus rempli
+  const fillSheets=async(K,txt)=>{
+    let rest=prep.slice();const sheets=[],oversize=[];
+    while(rest.length){
+      let bestSh=null,bestUsed=-1,bestIds=null;
+      const trials=sheets.length===0&&0?1:K;
+      for(let t=0;t<trials;t++){
+        rule=t%4===3?1:0;
+        // ordre : aire décroissante avec bruit (le premier essai est sans bruit)
+        const ord=rest.map(P=>({P,k:P.area*(t?(0.6+0.8*Math.random()):1)})).sort((x,y)=>y.k-x.k).map(o=>o.P);
+        const sh={bits:new Uint32Array(sw32*gh),free:UW*UH/(c*c),pl:[]},ids=[];
+        let fails=0;
+        for(const P of ord){
+          await tick(txt+` (planche ${sheets.length+1})`);
+          if(sh.free<P.area){continue;}
+          const b=tryFit(sh,P);
+          if(b){commit(sh,P,b);ids.push(P);fails=0;}
+          else if(++fails>=5)break;
+        }
+        const used=UW*UH/(c*c)-sh.free;
+        if(used>bestUsed){bestUsed=used;bestSh=sh;bestIds=ids;}
+      }
+      if(!bestIds.length){ // plus rien ne rentre (pièce trop grande)
+        oversize.push(...rest.splice(0,rest.length));break;
+      }
+      sheets.push(bestSh);
+      const set=new Set(bestIds);rest=rest.filter(P=>!set.has(P));
     }
-    done++;
+    return {sheets,oversize};
+  };
+  if(opts.fillK){
+    const f=await fillSheets(opts.fillK,'Optimisation des planches…');
+    return {bins:f.sheets.map(s=>({placements:s.pl})),oversize:f.oversize,trials:opts.fillK};
   }
-  return {bins:sheets.map(s=>({placements:s.pl})),oversize};
+  const t0=performance.now(),budget=opts.budget||0;
+  let order=prep.slice(),best=await pack(order,0,'Imbrication des pièces…'),bestOrder=order,trials=1;
+  while(budget&&performance.now()-t0<budget&&best.sheets.length>1){
+    // mutation à la SVGnest : on échange / déplace quelques pièces de l'ordre du meilleur essai
+    const o=bestOrder.slice(),nm=1+Math.floor(Math.random()*3);
+    for(let m=0;m<nm;m++){
+      const i=Math.floor(Math.random()*o.length);
+      if(Math.random()<0.5){const j=Math.floor(Math.random()*o.length);[o[i],o[j]]=[o[j],o[i]];}
+      else{const x=o.splice(i,1)[0];o.splice(Math.floor(Math.random()*(o.length+1)),0,x);}
+    }
+    const rl=Math.random()<0.3?1:0;
+    const tr=await pack(o,rl,`Optimisation… essai ${trials+1}, ${best.sheets.length} planches`);
+    trials++;
+    if(tr.cost<=best.cost){best=tr;bestOrder=o;}
+  }
+  return {bins:best.sheets.map(s=>({placements:s.pl})),oversize:best.oversize,trials};
 }
 
 /* ================= Assistant en 3 étapes ================= */
