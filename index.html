@@ -511,6 +511,7 @@
 
         <label class="sw"><span>Imbriquer les formes<small>Emboîte les pièces les unes dans les autres pour gagner de la matière. Un peu plus long à calculer.</small></span><input type="checkbox" id="shNest" checked><i></i></label>
         <div class="row" style="align-items:center;gap:10px;margin:6px 0 10px"><span style="font-weight:600;font-size:14px">Qualité de l'imbrication</span><select class="sel" id="shQ" style="margin-left:auto"><option value="0">Rapide</option><option value="30" selected>Équilibrée</option><option value="100">Maximale (plus long)</option></select></div>
+        <div class="row" style="align-items:center;gap:10px;margin:0 0 10px"><button class="btn sm" id="layBtn" type="button">Recalculer le rangement</button><span id="layHint" style="font-size:12px;opacity:.75"></span></div>
         <label class="sw"><span>Autoriser le retournement (miroir)<small>Retourne certaines pièces comme dans un miroir pour mieux les emboîter. Le dessous de la pièce se retrouve dessus : à éviter si les deux faces diffèrent.</small></span><input type="checkbox" id="shMir"><i></i></label>
         <label class="sw"><span>Autoriser la rotation des pièces<small>Plus de pièces par planche. À éviter si le sens du fil compte.</small></span><input type="checkbox" id="shRot" checked><i></i></label>
         <label class="sw"><span>Numéroter les pièces<small>Gravé sur l'ergot : invisible une fois collé.</small></span><input type="checkbox" id="lbl" checked><i></i></label>
@@ -1002,6 +1003,7 @@ async function generate(){
     }
     pieceItems.push({kind:'piece',n:p.i+1,w,h,cut,lbl,geom:p.geom.map(poly=>[poly[0].map(q=>[q[0]-x0,z1-q[1]])])});
   }
+  calcId++;packCache=null;
   calc={plate,pieceItems,smallLbl,warns,t,plateT,nPieces:valid.length,nSlots:slots.length,plateW,plateH,
         infoBase:`Modèle : ${(mx[0]-mn[0]).toFixed(1)} × ${(mx[1]-mn[1]).toFixed(1)} × ${(mx[2]-mn[2]).toFixed(1)} mm\n${infoStep}`};
   result={pieces,slots,t,plateT,bounds:{pX0,pX1,pY0,pY1},plateGeom,mn,mx,files:{},sheets:[]};
@@ -1011,8 +1013,8 @@ async function generate(){
   onCalculated();
 }
 
-let laySeq=0;
-async function layoutSheets(){
+let laySeq=0,packCache=null,calcId=0;
+async function layoutSheets(force){
   if(!calc)return;
   const mySeq=++laySeq;
   const {plate,pieceItems,t,plateT}=calc,fmt=v=>v.toFixed(3),warns=[...calc.warns];
@@ -1023,23 +1025,28 @@ async function layoutSheets(){
 
   // Rangement sur les planches
   const SW=+$('sheetW').value||210,SH=+$('sheetH').value||297,sm=Math.max(0,+$('shMar').value||0),sg=Math.max(0,+$('shGap').value||0),allowRot=$('shRot').checked;
+  const packKey=[calcId,SW,SH,sm,sg,allowRot,$('shNest').checked,$('shMir').checked,$('shQ').value].join('|'),newR=[];
   const tStr=v=>String(+v.toFixed(2));
   const sameMat=Math.abs(plateT-t)<0.01;
   const groups=sameMat?[{tag:`bois${tStr(t)}mm`,label:`bois ${tStr(t)} mm`,items:[plate,...pieceItems]}]
     :[{tag:`bois${tStr(t)}mm`,label:`bois ${tStr(t)} mm`,items:pieceItems},{tag:`plateau${tStr(plateT)}mm`,label:`plaque ${tStr(plateT)} mm`,items:[plate]}];
   const sheets=[];
-  for(const g of groups){
+  for(const [gi,g] of groups.entries()){
     let bins,oversize;
-    if($('shNest').checked&&g.items.every(i=>i.geom)){
+    if(packCache&&packCache.key===packKey&&packCache.r[gi]&&!force){({bins,oversize}=packCache.r[gi]);}
+    else if($('shNest').checked&&g.items.every(i=>i.geom)){
       try{({bins,oversize}=await nestItems(g.items,SW,SH,sm,sg,allowRot,{mirror:$('shMir').checked,fillK:+$('shQ').value,cancel:()=>mySeq!==laySeq,progress:t=>{const e=$('busyTxt');if(e)e.textContent=t;}}));}
       catch(e){if(mySeq!==laySeq)return;console.error(e);({bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot));}
     }else({bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot));
+    newR[gi]={bins,oversize};
     for(const b of bins)sheets.push({g,W:SW,H:SH,pl:b.placements});
     for(const it of oversize){
       warns.push(`${it.kind==='plate'?'La plaque de base':'La pièce '+it.n} (${it.w.toFixed(0)} × ${it.h.toFixed(0)} mm) dépasse le format ${SW} × ${SH} mm : elle est exportée seule, sur une planche plus grande.`);
       sheets.push({g,W:it.w+2*sm,H:it.h+2*sm,pl:[{it,x:0,y:0,rot:false}]});
     }
   }
+  if(mySeq!==laySeq)return;
+  packCache={key:packKey,r:newR};
   const files={},sheetFiles=[];
   sheets.forEach((sh,i)=>{
     let body='';
@@ -2107,7 +2114,12 @@ async function nestItems(items,SW,SH,sm,gap,allowRot,opts){
   };
   // Remplissage planche par planche : plusieurs essais aléatoires par planche, on garde le plus rempli
   const fillSheets=async(K,txt)=>{
-    let rest=prep.slice();const sheets=[],oversize=[];
+    let rest=[];const sheets=[],oversize=[];
+    for(const P of prep){ // pièces qui ne rentrent sur aucune planche vide : exportées seules
+      const e={bits:new Uint32Array(sw32*gh),free:UW*UH/(c*c),pl:[]};
+      rule=0;
+      if(tryFit(e,P))rest.push(P);else oversize.push(P.it);
+    }
     while(rest.length){
       let bestSh=null,bestUsed=-1,bestIds=null;
       const trials=sheets.length===0&&0?1:K;
@@ -2127,9 +2139,7 @@ async function nestItems(items,SW,SH,sm,gap,allowRot,opts){
         const used=UW*UH/(c*c)-sh.free;
         if(used>bestUsed){bestUsed=used;bestSh=sh;bestIds=ids;}
       }
-      if(!bestIds.length){ // plus rien ne rentre (pièce trop grande)
-        oversize.push(...rest.splice(0,rest.length));break;
-      }
+      if(!bestIds.length){oversize.push(...rest.map(P=>P.it));break;}
       sheets.push(bestSh);
       const set=new Set(bestIds);rest=rest.filter(P=>!set.has(P));
     }
@@ -2283,7 +2293,20 @@ function onCalculated(){
 }
 
 /* --- étape 3 : mise à jour automatique des planches --- */
-const relay=()=>{clearTimeout(layTimer);layTimer=setTimeout(()=>{if(calc)runBusy(layoutSheets,'Placement des pièces…');},250);};
+const PACKIDS=new Set(['sheetFmt','sheetW','sheetH','shMar','shGap','shRot','shNest','shMir','shQ']);
+const setStale=on=>{const b=$('layBtn');if(b)b.classList.toggle('cta',on);const h=$('layHint');if(h)h.textContent=on?'Réglages modifiés : clique sur « Recalculer le rangement ».':'';};
+const doLay=async force=>{await runBusy(()=>layoutSheets(force),'Placement des pièces…');setStale(false);};
+const relay=e=>{
+  const id=e&&e.target&&e.target.id;
+  clearTimeout(layTimer);
+  layTimer=setTimeout(()=>{
+    if(!calc)return;
+    const heavy=$('shNest').checked&&$('shQ').value!=='0';
+    if(heavy&&PACKIDS.has(id)){setStale(true);return;}
+    doLay(false);
+  },250);
+};
+$('layBtn').onclick=()=>{if(calc)doLay(true);};
 $('pane3').addEventListener('input',relay);$('pane3').addEventListener('change',relay);
 
 /* --- glisser-déposer d'un fichier --- */
