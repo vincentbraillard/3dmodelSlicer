@@ -982,7 +982,7 @@ async function generate(){
   {const seen=new Set();
    for(const s of slots){if(seen.has(s.n))continue;seen.add(s.n);
      const q=s.pts[1];
-     pinLbl+=`<text x="${fmt(sx(q[0]))}" y="${fmt(sy(q[1]))}" font-size="2.5" fill="#0000ff" font-family="sans-serif">${s.n}</text>`;}}
+     pinLbl+=numPath(String(s.n),sx(q[0]),sy(q[1])-0.36*2.5,2.5,'l');}}
   const plate={kind:'plate',w:plateW,h:plateH,cut:pinCut,lbl:pinLbl,geom:plateGeom.map(poly=>[poly[0].map(q=>[sx(q[0]),sy(q[1])])])};
   const pieceItems=[];let smallLbl=0;
   for(const p of valid){
@@ -999,7 +999,7 @@ async function generate(){
       let tb=p.tabs[0];for(const q of p.tabs)if(q[1]-q[0]>tb[1]-tb[0])tb=q;
       const txt=String(p.i+1),fs=Math.min(plateT*0.7,(tb[1]-tb[0])*0.9/(0.62*txt.length));
       if(fs<1.2)smallLbl++;
-      lbl=`<text x="${fmt((tb[0]+tb[1])/2-x0)}" y="${fmt(z1+plateT/2+fs*0.36)}" font-size="${fs.toFixed(2)}" text-anchor="middle" fill="#0000ff" font-family="sans-serif">${txt}</text>`;
+      lbl=numPath(txt,(tb[0]+tb[1])/2-x0,z1+plateT/2,fs,'c');
     }
     pieceItems.push({kind:'piece',n:p.i+1,w,h,cut,lbl,geom:p.geom.map(poly=>[poly[0].map(q=>[q[0]-x0,z1-q[1]])])});
   }
@@ -2165,6 +2165,31 @@ async function nestItems(items,SW,SH,sm,gap,allowRot,opts){
     if(tr.cost<=best.cost){best=tr;bestOrder=o;}
   }
   return {bins:best.sheets.map(s=>({placements:s.pl})),oversize:best.oversize,trials};
+}
+
+// ===== Chiffres en tracé vectoriel (trait bleu, sans remplissage) =====
+const NUM_GLYPHS={
+ '0':[[[.15,0],[.85,0],[1,.15],[1,.85],[.85,1],[.15,1],[0,.85],[0,.15],[.15,0]]],
+ '1':[[[.15,.22],[.55,0],[.55,1]]],
+ '2':[[[0,.15],[.15,0],[.85,0],[1,.15],[1,.35],[0,1],[1,1]]],
+ '3':[[[0,.1],[.15,0],[.85,0],[1,.15],[1,.38],[.85,.5],[.4,.5]],[[.85,.5],[1,.62],[1,.85],[.85,1],[.15,1],[0,.9]]],
+ '4':[[[.75,1],[.75,0],[0,.7],[1,.7]]],
+ '5':[[[1,0],[.1,0],[0,.5],[.8,.45],[1,.6],[1,.85],[.85,1],[.15,1],[0,.9]]],
+ '6':[[[.9,.05],[.7,0],[.2,0],[0,.2],[0,.85],[.15,1],[.85,1],[1,.85],[1,.6],[.85,.5],[.15,.5],[0,.6]]],
+ '7':[[[0,0],[1,0],[.35,1]]],
+ '8':[[[.15,.5],[0,.35],[0,.15],[.15,0],[.85,0],[1,.15],[1,.35],[.85,.5],[.15,.5]],[[.15,.5],[0,.65],[0,.85],[.15,1],[.85,1],[1,.85],[1,.65],[.85,.5]]],
+ '9':[[[.1,.95],[.3,1],[.8,1],[1,.8],[1,.15],[.85,0],[.15,0],[0,.15],[0,.4],[.15,.5],[.85,.5],[1,.4]]]
+};
+// txt : chiffres ; (x,y) : centre (align 'c') ou milieu gauche (align 'l') ; fs : taille de police équivalente
+function numPath(txt,x,y,fs,align){
+  const h=fs*0.72,gw=fs*0.5,adv=fs*0.62,tot=txt.length*adv-(adv-gw);
+  let x0=align==='c'?x-tot/2:x,d='';
+  for(const ch of txt){
+    const g=NUM_GLYPHS[ch];
+    if(g)for(const pl of g)d+=pl.map((q,k)=>(k?'L':'M')+(x0+q[0]*gw).toFixed(3)+' '+(y-h/2+q[1]*h).toFixed(3)).join('');
+    x0+=adv;
+  }
+  return `<path d="${d}" fill="none" stroke="#0000ff" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round"/>`;
 }
 
 /* ================= Assistant en 3 étapes ================= */
