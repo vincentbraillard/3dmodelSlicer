@@ -509,6 +509,7 @@
           <div class="ctl"><input class="num" type="number" id="sheetW" value="210" min="20" step="1" aria-label="Largeur"><span class="u">×</span><input class="num" type="number" id="sheetH" value="297" min="20" step="1" aria-label="Hauteur"><span class="u">mm</span>
           <button class="btn sm" id="sheetSwap" title="Inverser largeur et hauteur"><svg class="ic"><use href="#i-swap"/></svg></button></div></div>
 
+        <label class="sw"><span>Imbriquer les formes<small>Emboîte les pièces les unes dans les autres pour gagner de la matière. Un peu plus long à calculer.</small></span><input type="checkbox" id="shNest" checked><i></i></label>
         <label class="sw"><span>Autoriser la rotation des pièces<small>Plus de pièces par planche. À éviter si le sens du fil compte.</small></span><input type="checkbox" id="shRot" checked><i></i></label>
         <label class="sw"><span>Numéroter les pièces<small>Gravé sur l'ergot : invisible une fois collé.</small></span><input type="checkbox" id="lbl" checked><i></i></label>
         <label class="sw"><span>Numéroter la plaque<small>Gravé près de chaque fente, pour savoir où poser quoi.</small></span><input type="checkbox" id="lblPlate" checked><i></i></label>
@@ -884,7 +885,7 @@ function packItems(items,W,H,margin,gap,allowRot){
   return {bins:best?best.bins:[],oversize};
 }
 
-function generate(){
+async function generate(){
   if(!baseV){msg('','Importe d\'abord un modèle.');return;}
   const t=+$('t').value,N=Math.max(1,Math.round(+$('n').value)),plateT=+$('pt').value,tabW=+$('tw').value,
         off=+$('off').value,clr=+$('clr').value,mar=+$('mar').value,mode=$('axis').value,
@@ -979,7 +980,7 @@ function generate(){
    for(const s of slots){if(seen.has(s.n))continue;seen.add(s.n);
      const q=s.pts[1];
      pinLbl+=`<text x="${fmt(sx(q[0]))}" y="${fmt(sy(q[1]))}" font-size="2.5" fill="#0000ff" font-family="sans-serif">${s.n}</text>`;}}
-  const plate={kind:'plate',w:plateW,h:plateH,cut:pinCut,lbl:pinLbl};
+  const plate={kind:'plate',w:plateW,h:plateH,cut:pinCut,lbl:pinLbl,geom:plateGeom.map(poly=>[poly[0].map(q=>[sx(q[0]),sy(q[1])])])};
   const pieceItems=[];let smallLbl=0;
   for(const p of valid){
     let x0=1e18,x1=-1e18,z0=1e18,z1=-1e18;
@@ -997,19 +998,21 @@ function generate(){
       if(fs<1.2)smallLbl++;
       lbl=`<text x="${fmt((tb[0]+tb[1])/2-x0)}" y="${fmt(z1+plateT/2+fs*0.36)}" font-size="${fs.toFixed(2)}" text-anchor="middle" fill="#0000ff" font-family="sans-serif">${txt}</text>`;
     }
-    pieceItems.push({kind:'piece',n:p.i+1,w,h,cut,lbl});
+    pieceItems.push({kind:'piece',n:p.i+1,w,h,cut,lbl,geom:p.geom.map(poly=>[poly[0].map(q=>[q[0]-x0,z1-q[1]])])});
   }
   calc={plate,pieceItems,smallLbl,warns,t,plateT,nPieces:valid.length,nSlots:slots.length,plateW,plateH,
         infoBase:`Modèle : ${(mx[0]-mn[0]).toFixed(1)} × ${(mx[1]-mn[1]).toFixed(1)} × ${(mx[2]-mn[2]).toFixed(1)} mm\n${infoStep}`};
   result={pieces,slots,t,plateT,bounds:{pX0,pX1,pY0,pY1},plateGeom,mn,mx,files:{},sheets:[]};
   stale=false;
   buildPreview();
-  layoutSheets();
+  await layoutSheets();
   onCalculated();
 }
 
-function layoutSheets(){
+let laySeq=0;
+async function layoutSheets(){
   if(!calc)return;
+  const mySeq=++laySeq;
   const {plate,pieceItems,t,plateT}=calc,fmt=v=>v.toFixed(3),warns=[...calc.warns];
   const showL=$('lbl').checked,showP=$('lblPlate').checked;
   const inner=it=>it.cut+((it.kind==='plate'?showP:showL)?it.lbl:'');
@@ -1024,7 +1027,11 @@ function layoutSheets(){
     :[{tag:`bois${tStr(t)}mm`,label:`bois ${tStr(t)} mm`,items:pieceItems},{tag:`plateau${tStr(plateT)}mm`,label:`plaque ${tStr(plateT)} mm`,items:[plate]}];
   const sheets=[];
   for(const g of groups){
-    const {bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot);
+    let bins,oversize;
+    if($('shNest').checked&&g.items.every(i=>i.geom)){
+      try{({bins,oversize}=await nestItems(g.items,SW,SH,sm,sg,allowRot,{cancel:()=>mySeq!==laySeq,progress:(a,b)=>{const e=$('busyTxt');if(e)e.textContent=`Imbrication des pièces… ${a}/${b}`;}}));}
+      catch(e){if(mySeq!==laySeq)return;console.error(e);({bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot));}
+    }else({bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot));
     for(const b of bins)sheets.push({g,W:SW,H:SH,pl:b.placements});
     for(const it of oversize){
       warns.push(`${it.kind==='plate'?'La plaque de base':'La pièce '+it.n} (${it.w.toFixed(0)} × ${it.h.toFixed(0)} mm) dépasse le format ${SW} × ${SH} mm : elle est exportée seule, sur une planche plus grande.`);
@@ -1035,6 +1042,7 @@ function layoutSheets(){
   sheets.forEach((sh,i)=>{
     let body='';
     for(const q of sh.pl){
+      if(q.nest){body+=`<g transform="translate(${fmt(sm+q.tx)} ${fmt(sm+q.ty)}) rotate(${fmt(q.ang*180/Math.PI)})">${inner(q.it)}</g>`;continue;}
       const X=sm+q.x,Y=sm+q.y;
       body+=q.rot?`<g transform="translate(${fmt(X+q.it.h)} ${fmt(Y)}) rotate(90)">${inner(q.it)}</g>`:`<g transform="translate(${fmt(X)} ${fmt(Y)})">${inner(q.it)}</g>`;
     }
@@ -1947,6 +1955,150 @@ function stadiumSlot(pt,a,b,h){
   return ring;
 }
 
+// ===== Imbrication des pièces sur les planches (masques raster, rotations libres) =====
+
+function nestRasterize(rings,ang,c,r){
+  const ca=Math.cos(ang),sa=Math.sin(ang);
+  const R=rings.map(rg=>rg.map(p=>[p[0]*ca-p[1]*sa,p[0]*sa+p[1]*ca]));
+  let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;
+  for(const rg of R)for(const p of rg){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
+  const B=Math.ceil(r/c)+1,nx=Math.ceil((x1-x0)/c)+1+2*B,ny=Math.ceil((y1-y0)/c)+1+2*B;
+  const ox=x0-B*c,oy=y0-B*c,INF=1e12,g=new Float64Array(nx*ny).fill(INF);
+  // remplissage par balayage (pair/impair)
+  for(let j=0;j<ny;j++){
+    const y=oy+(j+0.5)*c,xs=[];
+    for(const rg of R)for(let k=0,n=rg.length;k<n;k++){
+      const a=rg[k],b=rg[(k+1)%n];
+      if((a[1]>y)!==(b[1]>y))xs.push(a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1]));
+    }
+    xs.sort((p,q)=>p-q);
+    for(let k=0;k+1<xs.length;k+=2){
+      const i0=Math.max(0,Math.ceil((xs[k]-ox)/c-0.5)),i1=Math.min(nx-1,Math.floor((xs[k+1]-ox)/c-0.5));
+      for(let i=i0;i<=i1;i++)g[j*nx+i]=0;
+    }
+  }
+  // cellules traversées par le contour (pour ne pas perdre les parties très fines)
+  for(const rg of R)for(let k=0,n=rg.length;k<n;k++){
+    const a=rg[k],b=rg[(k+1)%n],L=Math.hypot(b[0]-a[0],b[1]-a[1]),m=Math.max(1,Math.ceil(L/(c*0.5)));
+    for(let s=0;s<=m;s++){
+      const i=Math.floor((a[0]+(b[0]-a[0])*s/m-ox)/c),j=Math.floor((a[1]+(b[1]-a[1])*s/m-oy)/c);
+      if(i>=0&&j>=0&&i<nx&&j<ny)g[j*nx+i]=0;
+    }
+  }
+  let cells=0;for(let k=0;k<g.length;k++)if(g[k]===0)cells++;
+  // épaississement par la distance
+  const m=Math.max(nx,ny),v=new Int32Array(m),z=new Float64Array(m+1),tmp=new Float64Array(m),o=new Float64Array(m);
+  for(let i=0;i<nx;i++){for(let j=0;j<ny;j++)tmp[j]=g[j*nx+i];edt1(tmp,ny,v,z,o);for(let j=0;j<ny;j++)g[j*nx+i]=o[j];}
+  for(let j=0;j<ny;j++){for(let i=0;i<nx;i++)tmp[i]=g[j*nx+i];edt1(tmp,nx,v,z,o);for(let i=0;i<nx;i++)g[j*nx+i]=o[i];}
+  const rr=(r/c)*(r/c),w32=(nx+31)>>5,bits=new Uint32Array(w32*ny);
+  let rmin=ny,rmax=-1;
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++)if(g[j*nx+i]<=rr){bits[j*w32+(i>>5)]|=(1<<(i&31));if(j<rmin)rmin=j;if(j>rmax)rmax=j;}
+  return {bits,w32,nx,ny,B,r0:rmin,r1:rmax,cells,ang,minx:x0,miny:y0,ox,oy};
+}
+// ox,oy : origine du masque dans le repère tourné ; la pièce dessinée à (gx*c-B*c...) voir nestItems
+async function nestItems(items,SW,SH,sm,gap,allowRot,opts){
+  opts=opts||{};
+  const UW=SW-2*sm,UH=SH-2*sm;
+  let c=opts.cell||(gap>=1.5?1:0.5);
+  while((UW/c)*(UH/c)>400000)c*=1.25;
+  const r=gap/2+0.71*c,B=Math.ceil(r/c)+1;
+  const gw=Math.ceil(UW/c)+2*B,gh=Math.ceil(UH/c)+2*B,sw32=((gw+31)>>5)+1;
+  const step=allowRot?(opts.step||15):360,angs=[];
+  for(let a=0;a<360;a+=step)angs.push(a*Math.PI/180);
+  const prep=items.map(it=>{
+    const rings=[];for(const poly of it.geom)if(poly[0])rings.push(poly[0].slice(0,-1)); // anneau extérieur
+    return {it,rings,masks:new Array(angs.length)};
+  });
+  const getMask=(P,k)=>P.masks[k]||(P.masks[k]=nestRasterize(P.rings,angs[k],c,r));
+  for(const P of prep)P.area=getMask(P,0).cells;
+  prep.sort((a,b)=>b.area-a.area);
+  const sheets=[],oversize=[];
+  let lastYield=performance.now(),done=0;
+  const tick=async()=>{
+    if(opts.cancel&&opts.cancel())throw new Error('annulé');
+    if(performance.now()-lastYield>60){
+      if(opts.progress)opts.progress(done,prep.length);
+      await new Promise(rs=>setTimeout(rs,0));lastYield=performance.now();
+    }
+  };
+  const tryFit=(sh,P,limit)=>{ // meilleur placement (bas, puis gauche) sur cette planche
+    let best=null;
+    for(let k=0;k<angs.length;k++){
+      const M=getMask(P,k);
+      if(M.nx>gw||M.ny>gh||M.r1<0)continue;
+      const mh=M.r1+1; // dernière ligne occupée
+      const maxY=Math.min(gh-M.ny,best?best.score-mh-1:1e9);
+      const S=sh.bits,pw=M.w32,mb=M.bits;
+      // lignes non vides seulement
+      const fits=(gx,gy)=>{
+        const q=gx>>5,s=gx&31;
+        for(let rr=M.r0;rr<=M.r1;rr++){
+          const sb=(gy+rr)*sw32+q,pb=rr*pw;
+          for(let w=0;w<pw;w++){
+            const pv=mb[pb+w];if(!pv)continue;
+            if(S[sb+w]&(pv<<s))return false;
+            if(s&&(S[sb+w+1]&(pv>>>(32-s))))return false;
+          }
+        }
+        return true;
+      };
+      const ST=3,maxX=gw-M.nx;
+      let found=null;
+      outer:
+      for(let gy=0;gy<=maxY+ST-1;gy+=ST){
+        const yy=Math.min(gy,maxY);
+        for(let gx=0;gx<=maxX+ST-1;gx+=ST){
+          const xx=Math.min(gx,maxX);
+          if(fits(xx,yy)){found=[xx,yy];break outer;}
+        }
+        if(yy>=maxY)break;
+      }
+      if(found){ // affinage : on remonte / recule d'un pas au plus
+        let [fx,fy]=found,bx=fx,by=fy;
+        for(let dy=Math.max(0,fy-ST+1);dy<=fy;dy++){
+          let hit=false;
+          for(let dx=Math.max(0,fx-ST+1);dx<=fx;dx++)if(fits(dx,dy)){bx=dx;by=dy;hit=true;break;}
+          if(hit)break;
+        }
+        const score=by+mh;
+        if((!best||score<best.score||(score===best.score&&bx<best.gx)))best={k,gx:bx,gy:by,score};
+      }
+    }
+    return best;
+  };
+  const commit=(sh,P,b)=>{
+    const M=getMask(P,b.k),S=sh.bits,pw=M.w32,q=b.gx>>5,s=b.gx&31;
+    for(let rr=M.r0;rr<=M.r1;rr++){
+      const sb=(b.gy+rr)*sw32+q,pb=rr*pw;
+      for(let w=0;w<pw;w++){
+        const pv=M.bits[pb+w];if(!pv)continue;
+        S[sb+w]|=(pv<<s);if(s)S[sb+w+1]|=(pv>>>(32-s));
+      }
+    }
+    sh.free-=M.cells;
+    // la forme (repère tourné) a son coin (minx,miny) à ((gx+B)*c-B*c ...) : cellule 0 du masque = ox
+    // point de la forme (x',y') dans le repère tourné -> planche : x'-ox + gx*c - B*c
+    sh.pl.push({it:P.it,nest:true,ang:M.ang,tx:b.gx*c-M.ox-B*c,ty:b.gy*c-M.oy-B*c});
+  };
+  for(const P of prep){
+    await tick();
+    let placed=false;
+    for(const sh of sheets){
+      if(sh.free<P.area)continue;
+      const b=tryFit(sh,P);
+      if(b){commit(sh,P,b);placed=true;break;}
+    }
+    if(!placed){
+      const sh={bits:new Uint32Array(sw32*gh),free:UW*UH/(c*c),pl:[]};
+      const b=tryFit(sh,P);
+      if(b){commit(sh,P,b);sheets.push(sh);}
+      else oversize.push(P.it);
+    }
+    done++;
+  }
+  return {bins:sheets.map(s=>({placements:s.pl})),oversize};
+}
+
 /* ================= Assistant en 3 étapes ================= */
 const SHAPE_FR={star:'étoile',circle:'rond',square:'carré',triangle:'triangle',polygon:'polygone',flower:'fleur',heart:'cœur',draw:'dessin libre'};
 const AXIS_HELP={
@@ -2073,7 +2225,7 @@ function onCalculated(){
 }
 
 /* --- étape 3 : mise à jour automatique des planches --- */
-const relay=()=>{clearTimeout(layTimer);layTimer=setTimeout(()=>{if(calc)layoutSheets();},250);};
+const relay=()=>{clearTimeout(layTimer);layTimer=setTimeout(()=>{if(calc)runBusy(layoutSheets,'Placement des pièces…');},250);};
 $('pane3').addEventListener('input',relay);$('pane3').addEventListener('change',relay);
 
 /* --- glisser-déposer d'un fichier --- */
@@ -2196,7 +2348,7 @@ async function loadProject(text,handle,fname){
       ['gShape','axis','sheetFmt','plateShape'].forEach(syncTiles);syncChips();updateAxisHelp();updatePlateUI();updateCutUI();
       $$('input[type=range][data-pair]').forEach(r=>{r.value=$(r.dataset.pair).value;});
       refreshModel(true);applySinkView();
-      if(d.calculated){await new Promise(r=>setTimeout(r,30));generate();}
+      if(d.calculated){await new Promise(r=>setTimeout(r,30));await generate();}
       goStep(Math.min(d.step||1,d.calculated?3:(baseV?2:1)));
       if(d.realMode&&result){realMode=true;applyMode();show(step===3?'2d':'3d');}
     },'Ouverture du projet…');
