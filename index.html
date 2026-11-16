@@ -186,6 +186,8 @@
   .seg button{display:flex;align-items:center;gap:7px;font:700 14px var(--body);color:var(--ink);background:none;border:0;border-radius:999px;padding:7px 14px;cursor:pointer}
   .seg button:hover{background:var(--accent-soft)}
   .seg button.on{background:var(--ink);color:#fff}
+  .seg [hidden]{display:none}
+  .seg .sep{width:2px;margin:4px 2px;background:var(--accent-soft);border-radius:2px}
   .empty{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;padding:30px}
   .empty svg.ring{width:min(300px,55vh);height:auto;animation:spin 60s linear infinite}
   .empty h2{font:800 26px var(--display);margin:6px 0 4px;letter-spacing:-.02em}
@@ -234,6 +236,7 @@
 
 <!-- icônes -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 2.5 3.5 7v10L12 21.5 20.5 17V7L12 2.5Z"/><path d="M3.5 7 12 11.5 20.5 7M12 11.5v10"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
@@ -537,6 +540,8 @@
 
   <main class="stage">
     <div class="seg" role="tablist">
+      <button id="zoomFit" title="Recadrer la vue sur le modèle"><svg class="ic"><use href="#i-fit"/></svg>Zoom au mieux</button>
+      <span class="sep" id="zoomSep"></span>
       <button id="tab3d" class="on"><svg class="ic"><use href="#i-cube"/></svg>Vue 3D</button>
       <button id="tabReal"><svg class="ic"><use href="#i-wood"/></svg>Rendu bois</button>
       <button id="tab2d"><svg class="ic"><use href="#i-grid"/></svg>Planches</button>
@@ -1530,6 +1535,19 @@ $('dlZip').onclick=async()=>{
   download(`${baseName}_svg.zip`,await z.generateAsync({type:'blob'}),'application/zip');
   confetti();toast('Fichiers téléchargés. Bonne découpe !');
 };
+function zoomToFit(){
+  const box=new THREE.Box3(),add=o=>{if(!o)return;let vis=true;for(let p=o;p;p=p.parent)if(!p.visible)vis=false;if(!vis)return;
+    o.updateWorldMatrix(true,false);if(o.geometry){o.geometry.boundingBox||o.geometry.computeBoundingBox();box.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld));}};
+  add(modelMesh);pieceGroup.traverse(add);
+  if(box.isEmpty()){toast('Aucun modèle à cadrer.');return;}
+  const sph=box.getBoundingSphere(new THREE.Sphere()),r=Math.max(sph.radius,1e-3);
+  const vf=THREE.MathUtils.degToRad(camera.fov)/2,hf=Math.atan(Math.tan(vf)*camera.aspect);
+  const dist=r/Math.sin(Math.min(vf,hf))*1.1;
+  const dir=camera.position.clone().sub(controls.target);if(dir.lengthSq()<1e-9)dir.set(1.2,-1.8,1.1);dir.normalize();
+  controls.target.copy(sph.center);camera.position.copy(sph.center).addScaledVector(dir,dist);
+  camera.near=Math.max(dist/1000,0.01);camera.far=dist*50;camera.updateProjectionMatrix();controls.update();
+}
+$('zoomFit').onclick=zoomToFit;
 let view='3d';
 function syncTabs(){
   $('tab3d').classList.toggle('on',view==='3d'&&!realMode);
@@ -1541,6 +1559,7 @@ const show=m=>{
   $('view3d').style.display=m==='3d'?'block':'none';
   $('view2d').style.display=m==='2d'?'block':'none';
   $('hint3d').hidden=!(m==='3d'&&baseV);
+  $('zoomFit').hidden=$('zoomSep').hidden=m!=='3d';
   syncTabs();
   if(m==='3d')fit();
 };
