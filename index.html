@@ -516,7 +516,7 @@
 
         <label class="sw"><span>Imbriquer les formes<small>Emboîte les pièces les unes dans les autres pour gagner de la matière. Un peu plus long à calculer.</small></span><input type="checkbox" id="shNest" checked><i></i></label>
         <div class="row" style="align-items:center;gap:10px;margin:6px 0 10px"><span style="font-weight:600;font-size:14px">Qualité de l'imbrication</span><select class="sel" id="shQ" style="margin-left:auto"><option value="0">Rapide</option><option value="30" selected>Équilibrée</option><option value="100">Maximale (plus long)</option></select></div>
-        <div class="row" style="align-items:center;gap:10px;margin:0 0 10px"><button class="btn sm" id="layBtn" type="button">Recalculer le rangement</button><span id="layHint" style="font-size:12px;opacity:.75"></span></div>
+        <div class="row" style="align-items:center;gap:10px;margin:0 0 10px"><button class="btn sm" id="layBtn" type="button">Optimiser le rangement</button><span id="layHint" style="font-size:12px;opacity:.75"></span></div>
         <label class="sw"><span>Autoriser le retournement (miroir)<small>Retourne certaines pièces comme dans un miroir pour mieux les emboîter. Le dessous de la pièce se retrouve dessus : à éviter si les deux faces diffèrent.</small></span><input type="checkbox" id="shMir"><i></i></label>
         <label class="sw"><span>Autoriser la rotation des pièces<small>Plus de pièces par planche. À éviter si le sens du fil compte.</small></span><input type="checkbox" id="shRot" checked><i></i></label>
         <label class="sw"><span>Numéroter les pièces<small>Gravé sur l'ergot : invisible une fois collé.</small></span><input type="checkbox" id="lbl" checked><i></i></label>
@@ -1010,7 +1010,7 @@ async function generate(){
     }
     pieceItems.push({kind:'piece',n:p.i+1,w,h,cut,lbl,geom:p.geom.map(poly=>[poly[0].map(q=>[q[0]-x0,z1-q[1]])])});
   }
-  calcId++;packCache=null;
+  calcId++;packCache=null;layOptimized=false; // la découpe ne lance plus l'optimisation : rangement rapide en attendant le clic sur « Optimiser »
   calc={plate,pieceItems,smallLbl,warns,t,plateT,nPieces:valid.length,nSlots:slots.length,plateW,plateH,
         infoBase:`Modèle : ${(mx[0]-mn[0]).toFixed(1)} × ${(mx[1]-mn[1]).toFixed(1)} × ${(mx[2]-mn[2]).toFixed(1)} mm\n${infoStep}`};
   result={pieces,slots,t,plateT,bounds:{pX0,pX1,pY0,pY1},plateGeom,mn,mx,files:{},sheets:[]};
@@ -1020,7 +1020,7 @@ async function generate(){
   onCalculated();
 }
 
-let laySeq=0,packCache=null,calcId=0;
+let laySeq=0,packCache=null,calcId=0,layOptimized=false;
 async function layoutSheets(force){
   if(!calc)return;
   const mySeq=++laySeq;
@@ -1032,7 +1032,7 @@ async function layoutSheets(force){
 
   // Rangement sur les planches
   const SW=+$('sheetW').value||210,SH=+$('sheetH').value||297,sm=Math.max(0,+$('shMar').value||0),sg=Math.max(0,+$('shGap').value||0),allowRot=$('shRot').checked;
-  const packKey=[calcId,SW,SH,sm,sg,allowRot,$('shNest').checked,$('shMir').checked,$('shQ').value].join('|'),newR=[];
+  const packKey=[calcId,SW,SH,sm,sg,allowRot,$('shNest').checked,$('shMir').checked,$('shQ').value,layOptimized].join('|'),newR=[];
   const tStr=v=>String(+v.toFixed(2));
   const sameMat=Math.abs(plateT-t)<0.01;
   const groups=sameMat?[{tag:`bois${tStr(t)}mm`,label:`bois ${tStr(t)} mm`,items:[plate,...pieceItems]}]
@@ -1041,7 +1041,7 @@ async function layoutSheets(force){
   for(const [gi,g] of groups.entries()){
     let bins,oversize;
     if(packCache&&packCache.key===packKey&&packCache.r[gi]&&!force){({bins,oversize}=packCache.r[gi]);}
-    else if($('shNest').checked&&g.items.every(i=>i.geom)){
+    else if(layOptimized&&$('shNest').checked&&g.items.every(i=>i.geom)){
       try{({bins,oversize}=await nestItems(g.items,SW,SH,sm,sg,allowRot,{mirror:$('shMir').checked,fillK:+$('shQ').value,cancel:()=>mySeq!==laySeq,progress:t=>{const e=$('busyTxt');if(e)e.textContent=t;}}));}
       catch(e){if(mySeq!==laySeq)return;console.error(e);({bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot));}
     }else({bins,oversize}=packItems(g.items,SW,SH,sm,sg,allowRot));
@@ -2394,25 +2394,25 @@ $('axis').addEventListener('change',updateAxisHelp);
 $('pane2').addEventListener('input',()=>{if(result&&!stale){stale=true;$('genTxt').textContent='Recalculer la découpe';}});
 $('pane2').addEventListener('change',()=>{if(result&&!stale){stale=true;$('genTxt').textContent='Recalculer la découpe';}});
 function onCalculated(){
-  $('genTxt').textContent='Recalculer la découpe';$('stats2').hidden=false;
+  $('genTxt').textContent='Recalculer la découpe';$('stats2').hidden=false;syncStale();
   if(!didConfetti){confetti();didConfetti=true;}
 }
 
 /* --- étape 3 : mise à jour automatique des planches --- */
 const PACKIDS=new Set(['sheetFmt','sheetW','sheetH','shMar','shGap','shRot','shNest','shMir','shQ']);
-const setStale=on=>{const b=$('layBtn');if(b)b.classList.toggle('cta',on);const h=$('layHint');if(h)h.textContent=on?'Réglages modifiés : clique sur « Recalculer le rangement ».':'';};
-const doLay=async force=>{await runBusy(()=>layoutSheets(force),'Placement des pièces…');setStale(false);};
+const setStale=on=>{const b=$('layBtn');if(b)b.classList.toggle('cta',on);const h=$('layHint');if(h)h.textContent=on?'Rangement provisoire : clique sur « Optimiser » pour emboîter les pièces au mieux.':'';};
+const syncStale=()=>setStale(!layOptimized&&$('shNest').checked);
+const doLay=async force=>{await runBusy(()=>layoutSheets(force),layOptimized?'Optimisation du rangement…':'Placement des pièces…');syncStale();};
 const relay=e=>{
   const id=e&&e.target&&e.target.id;
   clearTimeout(layTimer);
   layTimer=setTimeout(()=>{
     if(!calc)return;
-    const heavy=$('shNest').checked&&$('shQ').value!=='0';
-    if(heavy&&PACKIDS.has(id)){setStale(true);return;}
+    if(PACKIDS.has(id))layOptimized=false; // réglage de rangement modifié : rangement rapide, l'optimisation attend le bouton
     doLay(false);
   },250);
 };
-$('layBtn').onclick=()=>{if(calc)doLay(true);};
+$('layBtn').onclick=()=>{if(!calc)return;layOptimized=true;doLay(true);};
 $('pane3').addEventListener('input',relay);$('pane3').addEventListener('change',relay);
 
 /* --- glisser-déposer d'un fichier --- */
